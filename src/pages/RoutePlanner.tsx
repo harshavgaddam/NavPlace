@@ -53,6 +53,13 @@ import googleMapsService, {
   PlaceOfInterest, 
   AutocompleteResult 
 } from '../services/GoogleMapsService';
+import geminiService, { 
+  UserPreference, 
+  GeminiPlaceSuggestion, 
+  GeminiAnalysis 
+} from '../services/GeminiService';
+import PreferencesPanel from '../components/PreferencesPanel';
+import PlaceDetailsModal from '../components/PlaceDetailsModal';
 
 // Types
 interface RoutePlannerState {
@@ -69,6 +76,12 @@ interface RoutePlannerState {
   showStartPredictions: boolean;
   showEndPredictions: boolean;
   transportationMode: 'driving' | 'transit' | 'walking' | 'bicycling';
+  userPreferences: UserPreference[];
+  geminiSuggestions: GeminiPlaceSuggestion[];
+  geminiAnalysis: GeminiAnalysis | null;
+  showPreferences: boolean;
+  selectedPlace: GeminiPlaceSuggestion | null;
+  showPlaceModal: boolean;
 }
 
 // Transportation mode options
@@ -127,6 +140,20 @@ const RoutePlanner: React.FC = () => {
     showStartPredictions: false,
     showEndPredictions: false,
     transportationMode: 'driving',
+    userPreferences: [
+      { category: 'restaurant', interestLevel: 3 },
+      { category: 'museum', interestLevel: 3 },
+      { category: 'park', interestLevel: 3 },
+      { category: 'shopping', interestLevel: 3 },
+      { category: 'activity', interestLevel: 3 },
+      { category: 'lodging', interestLevel: 3 },
+      { category: 'photography', interestLevel: 3 },
+    ],
+    geminiSuggestions: [],
+    geminiAnalysis: null,
+    showPreferences: false,
+    selectedPlace: null,
+    showPlaceModal: false,
   });
   const [startLoading, setStartLoading] = useState(false);
   const [endLoading, setEndLoading] = useState(false);
@@ -267,12 +294,35 @@ const RoutePlanner: React.FC = () => {
       const placeTypes = ['restaurant', 'museum', 'park', 'shopping_mall', 'tourist_attraction'];
       const pois = await googleMapsService.searchPlacesAlongRoute(route, placeTypes, 5);
 
-      setState(prev => ({
-        ...prev,
-        route,
-        pois,
-        loading: false,
-      }));
+      // Get AI-powered recommendations
+      try {
+        const geminiAnalysis = await geminiService.getPersonalizedRecommendations(
+          state.startLocation,
+          state.endLocation,
+          route.distance,
+          route.duration,
+          state.transportationMode,
+          state.userPreferences,
+          pois
+        );
+
+        setState(prev => ({
+          ...prev,
+          route,
+          pois,
+          geminiSuggestions: geminiAnalysis.suggestions,
+          geminiAnalysis,
+          loading: false,
+        }));
+      } catch (geminiError) {
+        console.error('Gemini API error:', geminiError);
+        setState(prev => ({
+          ...prev,
+          route,
+          pois,
+          loading: false,
+        }));
+      }
     } catch (error) {
       console.error('Route planning error:', error);
       setState(prev => ({
@@ -336,6 +386,50 @@ const RoutePlanner: React.FC = () => {
   const formatDistance = (kilometers: number) => {
     const miles = kilometers * 0.621371;
     return `${miles.toFixed(1)} mi`;
+  };
+
+  // Handle preferences change
+  const handlePreferencesChange = (newPreferences: UserPreference[]) => {
+    setState(prev => ({ ...prev, userPreferences: newPreferences }));
+  };
+
+  // Handle place selection from map
+  const handlePlaceSelect = (place: GeminiPlaceSuggestion) => {
+    setState(prev => ({ 
+      ...prev, 
+      selectedPlace: place, 
+      showPlaceModal: true 
+    }));
+  };
+
+  // Handle place modal close
+  const handlePlaceModalClose = () => {
+    setState(prev => ({ 
+      ...prev, 
+      showPlaceModal: false, 
+      selectedPlace: null 
+    }));
+  };
+
+  // Handle reroute with selected place
+  const handleReroute = (place: GeminiPlaceSuggestion) => {
+    // TODO: Implement rerouting logic
+    console.log('Rerouting to include:', place.name);
+    handlePlaceModalClose();
+  };
+
+  // Get color for Gemini suggestions based on importance
+  const getGeminiSuggestionColor = (importance: string) => {
+    switch (importance.toLowerCase()) {
+      case 'must-visit':
+        return '#ef4444'; // Red
+      case 'highly recommended':
+        return '#f59e0b'; // Orange
+      case 'worth checking out':
+        return '#10b981'; // Green
+      default:
+        return '#6b7280'; // Gray
+    }
   };
 
   // Google Maps rendering logic
@@ -458,22 +552,44 @@ const RoutePlanner: React.FC = () => {
         });
       }
 
-      // Add POI markers
-      state.pois.forEach((poi) => {
-        new window.google.maps.Marker({
-          position: { lat: poi.location.lat, lng: poi.location.lng },
-          map,
-          title: poi.name,
-          icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 6,
-            fillColor: getPoiColor(poi.type),
-            fillOpacity: 0.8,
-            strokeColor: '#ffffff',
-            strokeWeight: 1
-          }
-        });
-      });
+             // Add POI markers
+       state.pois.forEach((poi) => {
+         new window.google.maps.Marker({
+           position: { lat: poi.location.lat, lng: poi.location.lng },
+           map,
+           title: poi.name,
+           icon: {
+             path: window.google.maps.SymbolPath.CIRCLE,
+             scale: 6,
+             fillColor: getPoiColor(poi.type),
+             fillOpacity: 0.8,
+             strokeColor: '#ffffff',
+             strokeWeight: 1
+           }
+         });
+       });
+
+       // Add Gemini AI suggestion markers
+       state.geminiSuggestions.forEach((suggestion) => {
+         const marker = new window.google.maps.Marker({
+           position: { lat: suggestion.location.lat, lng: suggestion.location.lng },
+           map,
+           title: suggestion.name,
+           icon: {
+             path: window.google.maps.SymbolPath.CIRCLE,
+             scale: 8,
+             fillColor: getGeminiSuggestionColor(suggestion.importance),
+             fillOpacity: 0.9,
+             strokeColor: '#ffffff',
+             strokeWeight: 2
+           }
+         });
+
+         // Add click listener for AI suggestions
+         marker.addListener('click', () => {
+           handlePlaceSelect(suggestion);
+         });
+       });
     }
 
     // Helper function to get Google Maps travel mode
@@ -492,21 +608,23 @@ const RoutePlanner: React.FC = () => {
       }
     };
 
-    // Get color based on transportation mode
-    const getRouteColor = (mode: string) => {
-      switch (mode) {
-        case 'driving':
-          return '#0ea5e9'; // Blue
-        case 'transit':
-          return '#8b5cf6'; // Purple
-        case 'walking':
-          return '#10b981'; // Green
-        case 'bicycling':
-          return '#f59e0b'; // Orange
-        default:
-          return '#0ea5e9';
-      }
-    };
+         // Get color based on transportation mode
+     const getRouteColor = (mode: string) => {
+       switch (mode) {
+         case 'driving':
+           return '#0ea5e9'; // Blue
+         case 'transit':
+           return '#8b5cf6'; // Purple
+         case 'walking':
+           return '#10b981'; // Green
+         case 'bicycling':
+           return '#f59e0b'; // Orange
+         default:
+           return '#0ea5e9';
+       }
+     };
+
+
 
     if (!window.google && apiKey) {
       const script = document.createElement('script');
@@ -617,8 +735,16 @@ const RoutePlanner: React.FC = () => {
                   Enter Your Journey
                 </Typography>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
-                                     {/* Start Location */}
+                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
+                   {/* AI Preferences Panel */}
+                   <PreferencesPanel
+                     preferences={state.userPreferences}
+                     onPreferencesChange={handlePreferencesChange}
+                     isOpen={state.showPreferences}
+                     onToggle={() => setState(prev => ({ ...prev, showPreferences: !prev.showPreferences }))}
+                   />
+
+                   {/* Start Location */}
                    <Box sx={{ position: 'relative' }}>
                      <TextField
                        fullWidth
@@ -1108,31 +1234,55 @@ const RoutePlanner: React.FC = () => {
                       borderRadius: { xs: 2, md: 4 },
                     }}
                   >
-                    <Typography
-                      variant="h4"
-                      gutterBottom
-                      className="text-primary"
-                      sx={{
-                        fontWeight: 700,
-                        mb: { xs: 2, md: 3 },
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        textAlign: { xs: 'center', sm: 'left' },
-                      }}
-                    >
-                      <ExploreIcon sx={{ 
-                        mr: { xs: 0, sm: 2 }, 
-                        mb: { xs: 1, sm: 0 },
-                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-                      }} className="icon-accent" />
-                      Recommended Places ({state.pois.length})
-                    </Typography>
+                                         <Typography
+                       variant="h4"
+                       gutterBottom
+                       className="text-primary"
+                       sx={{
+                         fontWeight: 700,
+                         mb: { xs: 2, md: 3 },
+                         display: 'flex',
+                         alignItems: 'center',
+                         fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+                         flexDirection: { xs: 'column', sm: 'row' },
+                         textAlign: { xs: 'center', sm: 'left' },
+                       }}
+                     >
+                       <ExploreIcon sx={{ 
+                         mr: { xs: 0, sm: 2 }, 
+                         mb: { xs: 1, sm: 0 },
+                         fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+                       }} className="icon-accent" />
+                       AI Recommendations ({state.pois.length + state.geminiSuggestions.length})
+                     </Typography>
+
+                     {state.geminiAnalysis && (
+                       <Box sx={{ mb: 3, p: 2, background: 'var(--bg-tertiary)', borderRadius: 2 }}>
+                         <Typography variant="body1" className="text-primary" sx={{ fontWeight: 600, mb: 1 }}>
+                           🤖 AI Route Analysis
+                         </Typography>
+                         <Typography variant="body2" className="text-secondary" sx={{ mb: 2 }}>
+                           {state.geminiAnalysis.routeInsights}
+                         </Typography>
+                         {state.geminiAnalysis.personalizedTips.length > 0 && (
+                           <Box>
+                             <Typography variant="body2" className="text-accent" sx={{ fontWeight: 600, mb: 1 }}>
+                               Personalized Tips:
+                             </Typography>
+                             {state.geminiAnalysis.personalizedTips.map((tip, index) => (
+                               <Typography key={index} variant="body2" className="text-secondary" sx={{ ml: 2 }}>
+                                 • {tip}
+                               </Typography>
+                             ))}
+                           </Box>
+                         )}
+                       </Box>
+                     )}
                     
-                    <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ alignItems: 'stretch' }}>
-                      {state.pois.slice(0, 8).map((poi, index) => (
-                        <Grid item xs={12} sm={6} lg={4} key={poi.id} sx={{ display: 'flex' }}>
+                                         <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ alignItems: 'stretch' }}>
+                       {/* Regular POIs */}
+                       {state.pois.slice(0, 4).map((poi, index) => (
+                         <Grid item xs={12} sm={6} lg={4} key={poi.id} sx={{ display: 'flex' }}>
                           <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -1314,18 +1464,196 @@ const RoutePlanner: React.FC = () => {
                               </CardContent>
                             </Card>
                           </motion.div>
-                        </Grid>
-                      ))}
-                    </Grid>
+                                                 </Grid>
+                       ))}
+
+                       {/* AI Suggestions */}
+                       {state.geminiSuggestions.slice(0, 4).map((suggestion, index) => (
+                         <Grid item xs={12} sm={6} lg={4} key={suggestion.id} sx={{ display: 'flex' }}>
+                           <motion.div
+                             initial={{ opacity: 0, y: 20 }}
+                             animate={{ opacity: 1, y: 0 }}
+                             transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
+                             style={{ width: '100%' }}
+                           >
+                             <Card
+                               sx={{
+                                 background: 'var(--bg-glass-strong)',
+                                 backdropFilter: 'blur(10px)',
+                                 border: '1px solid var(--border-primary)',
+                                 borderRadius: { xs: 2, md: 3 },
+                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                 width: '100%',
+                                 display: 'flex',
+                                 flexDirection: 'column',
+                                 cursor: 'pointer',
+                                 '&:hover': {
+                                   transform: { xs: 'none', md: 'translateY(-4px)' },
+                                   boxShadow: 'var(--shadow-strong)',
+                                   borderColor: getGeminiSuggestionColor(suggestion.importance),
+                                 },
+                               }}
+                               onClick={() => handlePlaceSelect(suggestion)}
+                             >
+                               <CardContent sx={{ 
+                                 p: { xs: 2, md: 3 },
+                                 flex: 1,
+                                 display: 'flex',
+                                 flexDirection: 'column',
+                               }}>
+                                 <Box sx={{ 
+                                   display: 'flex', 
+                                   alignItems: 'flex-start', 
+                                   mb: 2,
+                                   flexDirection: { xs: 'column', sm: 'row' },
+                                   textAlign: { xs: 'center', sm: 'left' },
+                                 }}>
+                                   <Avatar
+                                     sx={{
+                                       background: getGeminiSuggestionColor(suggestion.importance),
+                                       mr: { xs: 0, sm: 2 },
+                                       mb: { xs: 1, sm: 0 },
+                                       width: { xs: 40, sm: 48 },
+                                       height: { xs: 40, sm: 48 },
+                                     }}
+                                   >
+                                     🤖
+                                   </Avatar>
+                                   <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
+                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                       <Typography
+                                         variant="h6"
+                                         className="text-primary"
+                                         sx={{ 
+                                           fontWeight: 700, 
+                                           fontSize: { xs: '1rem', sm: '1.25rem' },
+                                         }}
+                                       >
+                                         {suggestion.name}
+                                       </Typography>
+                                       <Chip
+                                         label={suggestion.importance}
+                                         size="small"
+                                         sx={{
+                                           background: getGeminiSuggestionColor(suggestion.importance),
+                                           color: 'white',
+                                           fontSize: '0.6rem',
+                                           height: 20,
+                                         }}
+                                       />
+                                     </Box>
+                                     <Typography variant="body2" className="text-muted">
+                                       {suggestion.type} • {formatDistance(suggestion.distance)} from route
+                                     </Typography>
+                                   </Box>
+                                 </Box>
+
+                                 <Typography
+                                   variant="body2"
+                                   className="text-secondary"
+                                   sx={{
+                                     mb: 2,
+                                     lineHeight: 1.5,
+                                     fontSize: { xs: '0.875rem', sm: '1rem' },
+                                     textAlign: { xs: 'center', sm: 'left' },
+                                   }}
+                                 >
+                                   {suggestion.description}
+                                 </Typography>
+
+                                 <Box sx={{ 
+                                   display: 'flex', 
+                                   flexWrap: 'wrap', 
+                                   gap: 1, 
+                                   mb: 2,
+                                   justifyContent: { xs: 'center', sm: 'flex-start' },
+                                 }}>
+                                   {suggestion.tags.slice(0, 3).map((tag, index) => (
+                                     <Chip
+                                       key={index}
+                                       label={tag}
+                                       size="small"
+                                       sx={{
+                                         background: 'var(--bg-tertiary)',
+                                         color: 'var(--text-primary)',
+                                         fontSize: '0.7rem',
+                                       }}
+                                     />
+                                   ))}
+                                 </Box>
+
+                                 <Divider sx={{ my: 2, borderColor: 'var(--border-primary)' }} />
+
+                                 <Box sx={{ 
+                                   display: 'flex', 
+                                   justifyContent: 'space-between', 
+                                   alignItems: 'center',
+                                   flexDirection: { xs: 'column', sm: 'row' },
+                                   gap: { xs: 1, sm: 0 },
+                                   mt: 'auto',
+                                 }}>
+                                   <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                                     <Typography
+                                       variant="body2"
+                                       sx={{ 
+                                         color: 'var(--text-secondary)',
+                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                                       }}
+                                     >
+                                       <strong>AI Recommended</strong>
+                                     </Typography>
+                                     <Typography
+                                       variant="body2"
+                                       sx={{ 
+                                         color: 'var(--text-secondary)',
+                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                                       }}
+                                     >
+                                       <strong>Distance:</strong> {formatDistance(suggestion.distance)} away
+                                     </Typography>
+                                   </Box>
+                                   <Button
+                                     variant="outlined"
+                                     size="small"
+                                     startIcon={<DirectionsIcon />}
+                                     sx={{
+                                       borderColor: 'var(--border-primary)',
+                                       color: 'var(--text-primary)',
+                                       fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                       '&:hover': {
+                                         borderColor: getGeminiSuggestionColor(suggestion.importance),
+                                         backgroundColor: `${getGeminiSuggestionColor(suggestion.importance)}10`,
+                                       },
+                                     }}
+                                   >
+                                     View Details
+                                   </Button>
+                                 </Box>
+                               </CardContent>
+                             </Card>
+                           </motion.div>
+                         </Grid>
+                       ))}
+                     </Grid>
                   </Paper>
                 </motion.div>
               </Grid>
             )}
-          </AnimatePresence>
-        </Grid>
-      </Container>
-    </Box>
-  );
-};
+                     </AnimatePresence>
+         </Grid>
+       </Container>
+
+       {/* Place Details Modal */}
+       <PlaceDetailsModal
+         open={state.showPlaceModal}
+         onClose={handlePlaceModalClose}
+         place={state.selectedPlace}
+         userPreferences={state.userPreferences}
+         routeContext={`${state.startLocation} to ${state.endLocation}`}
+         onReroute={handleReroute}
+       />
+     </Box>
+   );
+ };
 
 export default RoutePlanner; 
