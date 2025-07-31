@@ -327,69 +327,173 @@ const RoutePlanner: React.FC = () => {
     function renderMap() {
       const mapDiv = document.getElementById('google-map');
       if (!mapDiv || !window.google) return;
+      
       const center = state.route
         ? { lat: state.route.start.lat, lng: state.route.start.lng }
         : { lat: 40.7128, lng: -74.0060 };
+      
       const map = new window.google.maps.Map(mapDiv, {
         center,
         zoom: state.route ? 10 : 12,
         mapTypeId: 'roadmap',
+        styles: [
+          {
+            featureType: 'poi',
+            elementType: 'labels',
+            stylers: [{ visibility: 'off' }]
+          }
+        ]
       });
+
       // Add start/end markers if route exists
       if (state.route) {
+        // Start marker
         new window.google.maps.Marker({
           position: { lat: state.route.start.lat, lng: state.route.start.lng },
           map,
-          label: 'A',
+          label: {
+            text: 'A',
+            color: 'white',
+            fontWeight: 'bold'
+          },
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#0ea5e9',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
+          }
         });
+
+        // End marker
         new window.google.maps.Marker({
           position: { lat: state.route.end.lat, lng: state.route.end.lng },
           map,
-          label: 'B',
-        });
-        // Draw route polyline with mode-specific styling
-        const routePath = [
-          { lat: state.route.start.lat, lng: state.route.start.lng },
-          ...state.route.waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
-          { lat: state.route.end.lat, lng: state.route.end.lng },
-        ];
-        
-        // Get color based on transportation mode
-        const getRouteColor = (mode: string) => {
-          switch (mode) {
-            case 'driving':
-              return '#0ea5e9'; // Blue
-            case 'transit':
-              return '#8b5cf6'; // Purple
-            case 'walking':
-              return '#10b981'; // Green
-            case 'bicycling':
-              return '#f59e0b'; // Orange
-            default:
-              return '#0ea5e9';
+          label: {
+            text: 'B',
+            color: 'white',
+            fontWeight: 'bold'
+          },
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#ef4444',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2
           }
+        });
+
+        // Draw actual route using Directions Service
+        const directionsService = new window.google.maps.DirectionsService();
+        const directionsRenderer = new window.google.maps.DirectionsRenderer({
+          map: map,
+          suppressMarkers: true, // We'll add our own markers
+          polylineOptions: {
+            strokeColor: getRouteColor(state.transportationMode),
+            strokeOpacity: 0.8,
+            strokeWeight: 4,
+            geodesic: true
+          }
+        });
+
+        const request = {
+          origin: { lat: state.route.start.lat, lng: state.route.start.lng },
+          destination: { lat: state.route.end.lat, lng: state.route.end.lng },
+          travelMode: getGoogleMapsTravelMode(state.transportationMode),
+          transitOptions: state.transportationMode === 'transit' ? {
+            modes: ['BUS', 'TRAIN', 'SUBWAY'],
+            routingPreference: 'FEWER_TRANSFERS'
+          } : undefined
         };
-        
-        new window.google.maps.Polyline({
-          path: routePath,
-          geodesic: true,
-          strokeColor: getRouteColor(state.transportationMode),
-          strokeOpacity: 0.8,
-          strokeWeight: 4,
-        }).setMap(map);
+
+        directionsService.route(request, (result: google.maps.DirectionsResult, status: google.maps.DirectionsStatus) => {
+          if (status === 'OK' && result.routes && result.routes.length > 0) {
+            directionsRenderer.setDirections(result);
+            
+            // Fit map to show the entire route
+            const bounds = new window.google.maps.LatLngBounds();
+            result.routes[0].legs.forEach((leg: google.maps.DirectionsLeg) => {
+              bounds.extend(leg.start_location);
+              bounds.extend(leg.end_location);
+            });
+            map.fitBounds(bounds);
+          } else {
+            console.error('Directions request failed due to ' + status);
+            // Fallback to simple polyline if directions fail
+            if (state.route) {
+              const routePath = [
+                { lat: state.route.start.lat, lng: state.route.start.lng },
+                ...state.route.waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
+                { lat: state.route.end.lat, lng: state.route.end.lng },
+              ];
+              
+              new window.google.maps.Polyline({
+                path: routePath,
+                geodesic: true,
+                strokeColor: getRouteColor(state.transportationMode),
+                strokeOpacity: 0.8,
+                strokeWeight: 4,
+              }).setMap(map);
+            }
+          }
+        });
       }
+
       // Add POI markers
       state.pois.forEach((poi) => {
         new window.google.maps.Marker({
           position: { lat: poi.location.lat, lng: poi.location.lng },
           map,
           title: poi.name,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 6,
+            fillColor: getPoiColor(poi.type),
+            fillOpacity: 0.8,
+            strokeColor: '#ffffff',
+            strokeWeight: 1
+          }
         });
       });
     }
+
+    // Helper function to get Google Maps travel mode
+    const getGoogleMapsTravelMode = (mode: string) => {
+      switch (mode) {
+        case 'driving':
+          return window.google.maps.TravelMode.DRIVING;
+        case 'transit':
+          return window.google.maps.TravelMode.TRANSIT;
+        case 'walking':
+          return window.google.maps.TravelMode.WALKING;
+        case 'bicycling':
+          return window.google.maps.TravelMode.BICYCLING;
+        default:
+          return window.google.maps.TravelMode.DRIVING;
+      }
+    };
+
+    // Get color based on transportation mode
+    const getRouteColor = (mode: string) => {
+      switch (mode) {
+        case 'driving':
+          return '#0ea5e9'; // Blue
+        case 'transit':
+          return '#8b5cf6'; // Purple
+        case 'walking':
+          return '#10b981'; // Green
+        case 'bicycling':
+          return '#f59e0b'; // Orange
+        default:
+          return '#0ea5e9';
+      }
+    };
+
     if (!window.google && apiKey) {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
       script.async = true;
       script.onload = () => {
         renderMap();
@@ -399,7 +503,7 @@ const RoutePlanner: React.FC = () => {
       renderMap();
     }
     // Re-render map when state.route or state.pois changes
-  }, [state.route, state.pois]);
+  }, [state.route, state.pois, state.transportationMode]);
 
   return (
     <Box sx={{ 
@@ -497,27 +601,33 @@ const RoutePlanner: React.FC = () => {
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
-                  {/* Start Location */}
-                  <Box sx={{ position: 'relative' }}>
-                    <TextField
-                      fullWidth
-                      label="Start Location"
-                      value={state.startLocation}
-                      onChange={(e) => handleStartLocationChange(e.target.value)}
-                      placeholder="Enter starting point"
-                      variant="outlined"
-                      ref={startInputRef}
-                      InputProps={{
-                        startAdornment: (
-                          <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
-                        ),
-                      }}
-                    />
+                                     {/* Start Location */}
+                   <Box sx={{ position: 'relative' }}>
+                     <TextField
+                       fullWidth
+                       label="Start Location"
+                       value={state.startLocation}
+                       onChange={(e) => handleStartLocationChange(e.target.value)}
+                       placeholder="Enter starting point"
+                       variant="outlined"
+                       ref={startInputRef}
+                       sx={{
+                         '& .MuiOutlinedInput-root': {
+                           borderRadius: state.showStartPredictions ? '8px 8px 0 0' : '8px',
+                         },
+                       }}
+                       InputProps={{
+                         startAdornment: (
+                           <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
+                         ),
+                       }}
+                     />
                     
                     {/* Start Location Predictions */}
                     <AnimatePresence>
                       {state.showStartPredictions && (
                         <motion.div
+                          className="prediction-dropdown"
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -529,11 +639,12 @@ const RoutePlanner: React.FC = () => {
                             zIndex: 1000,
                             background: 'var(--bg-glass)',
                             border: '1px solid var(--border-primary)',
-                            borderRadius: 4,
+                            borderRadius: '0 0 8px 8px',
                             maxHeight: 200,
                             overflow: 'auto',
                             backdropFilter: 'blur(10px)',
                             boxShadow: 'var(--shadow-soft)',
+                            marginTop: '-1px',
                           }}
                         >
                           {startLoading && (
@@ -573,27 +684,33 @@ const RoutePlanner: React.FC = () => {
                     </AnimatePresence>
                   </Box>
 
-                  {/* End Location */}
-                  <Box sx={{ position: 'relative' }}>
-                    <TextField
-                      fullWidth
-                      label="Destination"
-                      value={state.endLocation}
-                      onChange={(e) => handleEndLocationChange(e.target.value)}
-                      placeholder="Enter destination"
-                      variant="outlined"
-                      ref={endInputRef}
-                      InputProps={{
-                        startAdornment: (
-                          <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
-                        ),
-                      }}
-                    />
+                                     {/* End Location */}
+                   <Box sx={{ position: 'relative' }}>
+                     <TextField
+                       fullWidth
+                       label="Destination"
+                       value={state.endLocation}
+                       onChange={(e) => handleEndLocationChange(e.target.value)}
+                       placeholder="Enter destination"
+                       variant="outlined"
+                       ref={endInputRef}
+                       sx={{
+                         '& .MuiOutlinedInput-root': {
+                           borderRadius: state.showEndPredictions ? '8px 8px 0 0' : '8px',
+                         },
+                       }}
+                       InputProps={{
+                         startAdornment: (
+                           <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
+                         ),
+                       }}
+                     />
                     
                     {/* End Location Predictions */}
                     <AnimatePresence>
                       {state.showEndPredictions && (
                         <motion.div
+                          className="prediction-dropdown"
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
@@ -605,11 +722,12 @@ const RoutePlanner: React.FC = () => {
                             zIndex: 1000,
                             background: 'var(--bg-glass)',
                             border: '1px solid var(--border-primary)',
-                            borderRadius: 4,
+                            borderRadius: '0 0 8px 8px',
                             maxHeight: 200,
                             overflow: 'auto',
                             backdropFilter: 'blur(10px)',
                             boxShadow: 'var(--shadow-soft)',
+                            marginTop: '-1px',
                           }}
                         >
                           {endLoading && (

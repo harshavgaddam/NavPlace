@@ -453,3 +453,32 @@ body {
 .bg-forest { background-color: var(--color-forest); }
 .bg-desert { background-color: var(--color-desert); }
 .bg-mountain { background-color: var(--color-mountain); } 
+
+/* Custom scrollbar styling for prediction dropdowns */
+.prediction-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.prediction-dropdown::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.prediction-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 4px;
+}
+
+.prediction-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Ensure proper alignment for input fields with dropdowns */
+.input-with-dropdown .MuiOutlinedInput-root {
+  transition: border-radius 0.2s ease;
+}
+
+/* Global transition rule for interactive elements */
+button, a, input, textarea, select, .MuiButton-root, .MuiToggleButton-root, .MuiIconButton-root { 
+  transition: all 0.2s ease; 
+} 
