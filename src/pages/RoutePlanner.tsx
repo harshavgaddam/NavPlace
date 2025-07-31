@@ -321,6 +321,23 @@ const RoutePlanner: React.FC = () => {
     }
   };
 
+  // Helper function to format duration
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
+
+  // Helper function to convert km to miles and format distance
+  const formatDistance = (kilometers: number) => {
+    const miles = kilometers * 0.621371;
+    return `${miles.toFixed(1)} mi`;
+  };
+
   // Google Maps rendering logic
   useEffect(() => {
     const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -611,11 +628,11 @@ const RoutePlanner: React.FC = () => {
                        placeholder="Enter starting point"
                        variant="outlined"
                        ref={startInputRef}
-                       sx={{
-                         '& .MuiOutlinedInput-root': {
-                           borderRadius: state.showStartPredictions ? '8px 8px 0 0' : '8px',
-                         },
-                       }}
+                                               sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: state.showStartPredictions ? '12px 12px 0 0' : '12px',
+                          },
+                        }}
                        InputProps={{
                          startAdornment: (
                            <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
@@ -639,12 +656,13 @@ const RoutePlanner: React.FC = () => {
                             zIndex: 1000,
                             background: 'var(--bg-glass)',
                             border: '1px solid var(--border-primary)',
-                            borderRadius: '0 0 8px 8px',
+                            borderRadius: '0 0 12px 12px',
                             maxHeight: 200,
                             overflow: 'auto',
                             backdropFilter: 'blur(10px)',
                             boxShadow: 'var(--shadow-soft)',
                             marginTop: '-1px',
+                            borderTop: 'none',
                           }}
                         >
                           {startLoading && (
@@ -696,7 +714,7 @@ const RoutePlanner: React.FC = () => {
                        ref={endInputRef}
                        sx={{
                          '& .MuiOutlinedInput-root': {
-                           borderRadius: state.showEndPredictions ? '8px 8px 0 0' : '8px',
+                           borderRadius: state.showEndPredictions ? '12px 12px 0 0' : '12px',
                          },
                        }}
                        InputProps={{
@@ -722,12 +740,13 @@ const RoutePlanner: React.FC = () => {
                             zIndex: 1000,
                             background: 'var(--bg-glass)',
                             border: '1px solid var(--border-primary)',
-                            borderRadius: '0 0 8px 8px',
+                            borderRadius: '0 0 12px 12px',
                             maxHeight: 200,
                             overflow: 'auto',
                             backdropFilter: 'blur(10px)',
                             boxShadow: 'var(--shadow-soft)',
                             marginTop: '-1px',
+                            borderTop: 'none',
                           }}
                         >
                           {endLoading && (
@@ -994,13 +1013,13 @@ const RoutePlanner: React.FC = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                               <StraightenIcon sx={{ mr: 1 }} className="icon-accent" />
                               <Typography variant="body1" className="text-primary">
-                                <strong>Distance:</strong> {state.route.distance.toFixed(1)} km
+                                <strong>Distance:</strong> {formatDistance(state.route.distance)}
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                               <AccessTimeIcon sx={{ mr: 1 }} className="icon-accent" />
                               <Typography variant="body1" className="text-primary">
-                                <strong>Duration:</strong> {Math.round(state.route.duration)} minutes
+                                <strong>Duration:</strong> {formatDuration(Math.round(state.route.duration))}
                                 {state.transportationMode === 'transit' && ' (including transfers)'}
                                 {state.transportationMode === 'walking' && ' (walking time)'}
                                 {state.transportationMode === 'bicycling' && ' (cycling time)'}
@@ -1218,7 +1237,7 @@ const RoutePlanner: React.FC = () => {
                                     textAlign: { xs: 'center', sm: 'left' },
                                   }}
                                 >
-                                  {poi.description || `${poi.type} - ${poi.distance.toFixed(1)}km away`}
+                                                                     {poi.description || `${poi.type} - ${formatDistance(poi.distance)} away`}
                                 </Typography>
 
                                 <Box sx={{ 
@@ -1272,7 +1291,7 @@ const RoutePlanner: React.FC = () => {
                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
                                       }}
                                     >
-                                      <strong>Distance:</strong> {poi.distance.toFixed(1)} km away
+                                                                             <strong>Distance:</strong> {formatDistance(poi.distance)} away
                                     </Typography>
                                   </Box>
                                   <Button

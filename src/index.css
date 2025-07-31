@@ -456,21 +456,44 @@ body {
 
 /* Custom scrollbar styling for prediction dropdowns */
 .prediction-dropdown::-webkit-scrollbar {
-  width: 8px;
+  width: 0px; /* Make scrollbar invisible */
 }
 
 .prediction-dropdown::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 .prediction-dropdown::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 .prediction-dropdown::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: transparent;
+}
+
+/* Alternative: Thin, subtle scrollbar that matches the design */
+.prediction-dropdown {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.prediction-dropdown::-webkit-scrollbar {
+  width: 4px; /* Very thin scrollbar */
+}
+
+.prediction-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.prediction-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prediction-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Ensure proper alignment for input fields with dropdowns */
