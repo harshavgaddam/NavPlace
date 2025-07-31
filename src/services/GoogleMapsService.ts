@@ -192,7 +192,12 @@ class GoogleMapsService {
   }
 
   // Get route between two points
-  async getRoute(start: Location, end: Location, waypoints: Location[] = []): Promise<Route> {
+  async getRoute(
+    start: Location, 
+    end: Location, 
+    waypoints: Location[] = [], 
+    travelMode: 'driving' | 'transit' | 'walking' | 'bicycling' = 'driving'
+  ): Promise<Route> {
     await this.ensureInitialized();
 
     return new Promise((resolve, reject) => {
@@ -203,34 +208,56 @@ class GoogleMapsService {
         stopover: true,
       }));
 
-      service.route(
-        {
-          origin: new this.google.maps.LatLng(start.lat, start.lng),
-          destination: new this.google.maps.LatLng(end.lat, end.lng),
-          waypoints: waypointsFormatted,
-          optimizeWaypoints: true,
-          travelMode: this.google.maps.TravelMode.DRIVING,
-        },
-        (result: any, status: any) => {
-          if (status === this.google.maps.DirectionsStatus.OK && result) {
-            const route = result.routes[0];
-            const leg = route.legs[0];
-            
-            const routeData: Route = {
-              start,
-              end,
-              waypoints,
-              distance: leg.distance.value / 1000, // Convert to km
-              duration: leg.duration.value / 60, // Convert to minutes
-              polyline: route.overview_polyline,
-              bounds: route.bounds,
-            };
-            resolve(routeData);
-          } else {
-            reject(new Error(`Directions failed: ${status}`));
-          }
+      // Map travel mode string to Google Maps TravelMode enum
+      const getTravelMode = (mode: string) => {
+        switch (mode) {
+          case 'driving':
+            return this.google.maps.TravelMode.DRIVING;
+          case 'transit':
+            return this.google.maps.TravelMode.TRANSIT;
+          case 'walking':
+            return this.google.maps.TravelMode.WALKING;
+          case 'bicycling':
+            return this.google.maps.TravelMode.BICYCLING;
+          default:
+            return this.google.maps.TravelMode.DRIVING;
         }
-      );
+      };
+
+      const request = {
+        origin: new this.google.maps.LatLng(start.lat, start.lng),
+        destination: new this.google.maps.LatLng(end.lat, end.lng),
+        waypoints: waypointsFormatted,
+        optimizeWaypoints: true,
+        travelMode: getTravelMode(travelMode),
+        // Add transit options for transit mode
+        ...(travelMode === 'transit' && {
+          transitOptions: {
+            modes: [this.google.maps.TransitMode.BUS, this.google.maps.TransitMode.TRAIN],
+            routingPreference: this.google.maps.TransitRoutePreference.FEWER_TRANSFERS,
+          },
+        }),
+      };
+
+      service.route(request, (result: any, status: any) => {
+        if (status === this.google.maps.DirectionsStatus.OK && result) {
+          const route = result.routes[0];
+          const leg = route.legs[0];
+          
+          const routeData: Route = {
+            start,
+            end,
+            waypoints,
+            distance: leg.distance.value / 1000, // Convert to km
+            duration: leg.duration.value / 60, // Convert to minutes
+            polyline: route.overview_polyline,
+            bounds: route.bounds,
+          };
+          resolve(routeData);
+        } else {
+          reject(new Error(`Directions failed: ${status}`));
+        }
+      });
     });
   }
 

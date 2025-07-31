@@ -16,19 +16,20 @@ const ThemeToggle: React.FC = () => {
       <Tooltip title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
         <IconButton
           onClick={toggleTheme}
+          className="btn-secondary"
           sx={{
-            color: theme === 'light' ? '#1e293b' : '#f8fafc',
-            background: 'rgba(148, 163, 184, 0.1)',
+            color: 'var(--text-primary)',
+            background: 'var(--bg-glass)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(148, 163, 184, 0.2)',
+            border: '1px solid var(--border-primary)',
             borderRadius: '50%',
             width: 40,
             height: 40,
-            transition: 'all 0.3s ease',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
-              backgroundColor: 'rgba(245, 158, 11, 0.1)',
-              color: '#f59e0b',
-              borderColor: 'rgba(245, 158, 11, 0.3)',
+              backgroundColor: 'var(--bg-tertiary)',
+              color: 'var(--text-accent)',
+              borderColor: 'var(--border-accent)',
               transform: 'translateY(-2px)',
             },
           }}
@@ -39,9 +40,9 @@ const ThemeToggle: React.FC = () => {
             transition={{ duration: 0.5, ease: 'easeInOut' }}
           >
             {theme === 'light' ? (
-              <DarkModeIcon sx={{ fontSize: 20 }} />
+              <DarkModeIcon sx={{ fontSize: 20 }} className="icon-primary" />
             ) : (
-              <LightModeIcon sx={{ fontSize: 20 }} />
+              <LightModeIcon sx={{ fontSize: 20 }} className="icon-primary" />
             )}
           </motion.div>
         </IconButton>

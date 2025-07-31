@@ -6,10 +6,11 @@ A modern web application that transforms every car journey into an adventure wit
 
 ### 🎯 MVP Features (Current)
 - **Smart Route Planning** - Google Maps integration with real-time directions
+- **Multiple Transportation Modes** - Support for car, transit, walking, and bicycling routes
 - **Autocomplete Search** - Intelligent location search with Google Places API
 - **POI Discovery** - Find restaurants, museums, parks, and attractions along your route
 - **Interest-Based Filtering** - Personalized recommendations based on user preferences
-- **Interactive Map** - Visual route display with POI markers
+- **Interactive Map** - Visual route display with POI markers and mode-specific colors
 - **Modern UI/UX** - Beautiful, responsive design with light/dark theme support
 - **Real-time Data** - Live place information, ratings, and opening hours
 
@@ -88,9 +89,10 @@ The application will be available at `http://localhost:3000`
 ### Planning a Route
 1. **Enter Start Location** - Type and select from autocomplete suggestions
 2. **Enter Destination** - Type and select from autocomplete suggestions
-3. **Plan Route** - Click to get directions and discover POIs
-4. **Explore POIs** - Browse recommended places along your route
-5. **View Details** - Click on POIs for more information
+3. **Select Transportation Mode** - Choose between car, transit, walking, or bicycling
+4. **Plan Route** - Click to get directions and discover POIs
+5. **Explore POIs** - Browse recommended places along your route
+6. **View Details** - Click on POIs for more information
 
 ### Setting Preferences
 1. Navigate to **Preferences** page

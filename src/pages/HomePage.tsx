@@ -71,50 +71,20 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
-      {/* Floating background elements */}
-      <motion.div
-        className="float"
-        style={{
-          position: 'absolute',
-          top: '10%',
-          left: '5%',
-          width: 200,
-          height: 200,
-          background: 'radial-gradient(circle, rgba(44, 90, 160, 0.1) 0%, transparent 70%)',
-          borderRadius: '50%',
-          zIndex: 0,
-        }}
-      />
-      <motion.div
-        className="float"
-        style={{
-          position: 'absolute',
-          top: '60%',
-          right: '10%',
-          width: 150,
-          height: 150,
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%)',
-          borderRadius: '50%',
-          zIndex: 0,
-        }}
-        animate={{ y: [0, -30, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
+    <Box sx={{ minHeight: '100vh', position: 'relative' }}>
       {/* Hero Section */}
       <Box
         sx={{
           position: 'relative',
-          py: { xs: 8, md: 12 },
+          py: { xs: 4, sm: 6, md: 8, lg: 12 },
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
           zIndex: 1,
         }}
       >
-        <Container maxWidth="lg">
-          <Grid container spacing={6} alignItems="center">
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+          <Grid container spacing={{ xs: 3, sm: 4, md: 6 }} alignItems="center">
             <Grid item xs={12} md={6}>
               <motion.div
                 initial={{ opacity: 0, x: -50 }}
@@ -125,12 +95,13 @@ const HomePage: React.FC = () => {
                   variant="h1"
                   component="h1"
                   gutterBottom
+                  className="text-primary"
                   sx={{
                     fontWeight: 800,
-                    fontSize: { xs: '2.5rem', md: '4rem' },
+                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem', lg: '4rem' },
                     lineHeight: 1.1,
-                    mb: 3,
-                    color: 'var(--text-primary)',
+                    mb: { xs: 2, md: 3 },
+                    textAlign: { xs: 'center', md: 'left' },
                   }}
                 >
                   Discover Amazing
@@ -148,18 +119,26 @@ const HomePage: React.FC = () => {
                 <Typography
                   variant="h5"
                   paragraph
+                  className="text-secondary"
                   sx={{
-                    mb: 4,
-                    color: 'var(--text-secondary)',
+                    mb: { xs: 3, md: 4 },
                     lineHeight: 1.6,
                     fontWeight: 400,
+                    fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                    textAlign: { xs: 'center', md: 'left' },
                   }}
                 >
                   Transform every car journey into an adventure with AI-powered personalized recommendations. 
                   From historic landmarks to hidden gems, discover the best places along your route.
                 </Typography>
 
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 6 }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: { xs: 1, sm: 2 }, 
+                  flexWrap: 'wrap', 
+                  mb: { xs: 4, md: 6 },
+                  justifyContent: { xs: 'center', md: 'flex-start' },
+                }}>
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -170,16 +149,16 @@ const HomePage: React.FC = () => {
                       onClick={() => navigate('/plan')}
                       startIcon={<RouteIcon />}
                       sx={{
-                        px: 4,
-                        py: 2,
-                        fontSize: '1.1rem',
+                        px: { xs: 3, sm: 4 },
+                        py: { xs: 1.5, sm: 2 },
+                        fontSize: { xs: '1rem', sm: '1.1rem' },
                         fontWeight: 700,
                         borderRadius: 3,
                         background: 'var(--primary-gradient)',
                         boxShadow: 'var(--shadow-soft)',
                         '&:hover': {
                           background: 'var(--primary-gradient)',
-                          transform: 'translateY(-3px)',
+                          transform: { xs: 'none', md: 'translateY(-3px)' },
                           boxShadow: 'var(--shadow-strong)',
                         },
                       }}
@@ -198,9 +177,9 @@ const HomePage: React.FC = () => {
                       onClick={() => navigate('/preferences')}
                       startIcon={<FavoriteIcon />}
                       sx={{
-                        px: 4,
-                        py: 2,
-                        fontSize: '1.1rem',
+                        px: { xs: 3, sm: 4 },
+                        py: { xs: 1.5, sm: 2 },
+                        fontSize: { xs: '1rem', sm: '1.1rem' },
                         fontWeight: 700,
                         borderRadius: 3,
                         borderColor: 'var(--border-primary)',
@@ -208,7 +187,7 @@ const HomePage: React.FC = () => {
                         '&:hover': {
                           borderColor: 'var(--color-sunset)',
                           backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                          transform: 'translateY(-3px)',
+                          transform: { xs: 'none', md: 'translateY(-3px)' },
                         },
                       }}
                     >
@@ -218,7 +197,12 @@ const HomePage: React.FC = () => {
                 </Box>
 
                 {/* Stats */}
-                <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: { xs: 2, sm: 3, md: 4 }, 
+                  flexWrap: 'wrap',
+                  justifyContent: { xs: 'center', md: 'flex-start' },
+                }}>
                   {stats.map((stat, index) => (
                     <motion.div
                       key={stat.label}
@@ -229,19 +213,21 @@ const HomePage: React.FC = () => {
                       <Box sx={{ textAlign: 'center' }}>
                         <Typography
                           variant="h4"
+                          className="text-accent"
                           sx={{
                             fontWeight: 800,
-                            color: 'var(--color-ocean)',
                             mb: 0.5,
+                            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
                           }}
                         >
                           {stat.value}
                         </Typography>
                         <Typography
                           variant="body2"
+                          className="text-muted"
                           sx={{
-                            color: 'var(--text-muted)',
                             fontWeight: 500,
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           }}
                         >
                           {stat.label}
@@ -314,7 +300,12 @@ const HomePage: React.FC = () => {
       </Box>
 
       {/* Features Section */}
-      <Container maxWidth="lg" sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="lg" sx={{ 
+        py: { xs: 6, sm: 8, md: 12 }, 
+        position: 'relative', 
+        zIndex: 1,
+        px: { xs: 2, sm: 3, md: 4 },
+      }}>
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
@@ -325,10 +316,11 @@ const HomePage: React.FC = () => {
             component="h2"
             textAlign="center"
             gutterBottom
+            className="text-primary"
             sx={{
               fontWeight: 800,
-              mb: 2,
-              color: 'var(--text-primary)',
+              mb: { xs: 1, md: 2 },
+              fontSize: { xs: '2rem', sm: '2.5rem', md: '3.75rem' },
             }}
           >
             Why Choose NavPlace?
@@ -336,13 +328,18 @@ const HomePage: React.FC = () => {
           <Typography
             variant="h6"
             textAlign="center"
-            sx={{ mb: 8, color: 'var(--text-muted)', fontWeight: 400 }}
+            className="text-muted"
+            sx={{ 
+              mb: { xs: 6, md: 8 }, 
+              fontWeight: 400,
+              fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+            }}
           >
             Experience the future of travel planning with cutting-edge AI technology
           </Typography>
         </motion.div>
 
-        <Grid container spacing={4}>
+        <Grid container spacing={{ xs: 3, md: 4 }}>
           {features.map((feature, index) => (
             <Grid item xs={12} md={4} key={index}>
               <motion.div
@@ -357,14 +354,14 @@ const HomePage: React.FC = () => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     textAlign: 'center',
-                    p: 4,
+                    p: { xs: 3, md: 4 },
                     background: 'var(--bg-glass)',
                     backdropFilter: 'blur(20px)',
                     border: '1px solid var(--border-primary)',
-                    borderRadius: 4,
+                    borderRadius: { xs: 2, md: 4 },
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      transform: 'translateY(-12px) scale(1.03)',
+                      transform: { xs: 'none', md: 'translateY(-12px) scale(1.03)' },
                       boxShadow: 'var(--shadow-strong)',
                     },
                   }}
@@ -373,29 +370,40 @@ const HomePage: React.FC = () => {
                     sx={{
                       background: feature.gradient,
                       borderRadius: '50%',
-                      width: 100,
-                      height: 100,
+                      width: { xs: 80, sm: 90, md: 100 },
+                      height: { xs: 80, sm: 90, md: 100 },
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      mb: 3,
+                      mb: { xs: 2, md: 3 },
                       boxShadow: 'var(--shadow-soft)',
                     }}
                   >
-                    {feature.icon}
+                    {React.cloneElement(feature.icon, {
+                      sx: { fontSize: { xs: 36, sm: 42, md: 48 } }
+                    })}
                   </Box>
-                  <CardContent sx={{ flexGrow: 1 }}>
+                  <CardContent sx={{ flexGrow: 1, p: { xs: 2, md: 3 } }}>
                     <Typography
                       variant="h5"
                       component="h3"
                       gutterBottom
-                      sx={{ fontWeight: 700, mb: 2, color: 'var(--text-primary)' }}
+                      className="text-primary"
+                      sx={{ 
+                        fontWeight: 700, 
+                        mb: { xs: 1, md: 2 }, 
+                        fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                      }}
                     >
                       {feature.title}
                     </Typography>
                     <Typography
                       variant="body1"
-                      sx={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}
+                      className="text-secondary"
+                      sx={{ 
+                        lineHeight: 1.6,
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                      }}
                     >
                       {feature.description}
                     </Typography>
@@ -408,8 +416,8 @@ const HomePage: React.FC = () => {
       </Container>
 
       {/* Testimonials Section */}
-      <Box sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
-        <Container maxWidth="lg">
+      <Box sx={{ py: { xs: 6, sm: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
@@ -420,17 +428,18 @@ const HomePage: React.FC = () => {
               component="h2"
               textAlign="center"
               gutterBottom
+              className="text-primary"
               sx={{
                 fontWeight: 800,
-                mb: 2,
-                color: 'var(--text-primary)',
+                mb: { xs: 1, md: 2 },
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.75rem' },
               }}
             >
               What Our Users Say
             </Typography>
           </motion.div>
 
-          <Grid container spacing={4} sx={{ mt: 4 }}>
+          <Grid container spacing={{ xs: 3, md: 4 }} sx={{ mt: { xs: 3, md: 4 } }}>
             {testimonials.map((testimonial, index) => (
               <Grid item xs={12} md={6} key={index}>
                 <motion.div
@@ -440,19 +449,26 @@ const HomePage: React.FC = () => {
                 >
                   <Paper
                     sx={{
-                      p: 4,
+                      p: { xs: 3, md: 4 },
                       background: 'var(--bg-glass)',
                       backdropFilter: 'blur(20px)',
                       border: '1px solid var(--border-primary)',
-                      borderRadius: 4,
+                      borderRadius: { xs: 2, md: 4 },
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      mb: { xs: 2, md: 3 },
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      textAlign: { xs: 'center', sm: 'left' },
+                    }}>
                       <Avatar
                         sx={{
-                          width: 56,
-                          height: 56,
-                          mr: 2,
+                          width: { xs: 48, sm: 56 },
+                          height: { xs: 48, sm: 56 },
+                          mr: { xs: 0, sm: 2 },
+                          mb: { xs: 1, sm: 0 },
                           background: 'var(--primary-gradient)',
                           fontWeight: 700,
                         }}
@@ -460,16 +476,39 @@ const HomePage: React.FC = () => {
                         {testimonial.avatar}
                       </Avatar>
                       <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <Typography 
+                          variant="h6" 
+                          className="text-primary"
+                          sx={{ 
+                            fontWeight: 600, 
+                            fontSize: { xs: '1.125rem', sm: '1.25rem' },
+                          }}
+                        >
                           {testimonial.name}
                         </Typography>
-                        <Typography variant="body2" sx={{ color: 'var(--text-muted)' }}>
+                        <Typography 
+                          variant="body2" 
+                          className="text-muted"
+                          sx={{ 
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                          }}
+                        >
                           {testimonial.location}
                         </Typography>
                       </Box>
                     </Box>
-                    <Rating value={testimonial.rating} readOnly sx={{ mb: 2 }} />
-                    <Typography variant="body1" sx={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    <Box sx={{ display: 'flex', justifyContent: { xs: 'center', sm: 'flex-start' }, mb: 2 }}>
+                      <Rating value={testimonial.rating} readOnly />
+                    </Box>
+                    <Typography 
+                      variant="body1" 
+                      className="text-secondary"
+                      sx={{ 
+                        lineHeight: 1.6,
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        textAlign: { xs: 'center', sm: 'left' },
+                      }}
+                    >
                       "{testimonial.text}"
                     </Typography>
                   </Paper>
@@ -481,8 +520,8 @@ const HomePage: React.FC = () => {
       </Box>
 
       {/* CTA Section */}
-      <Box sx={{ py: { xs: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
-        <Container maxWidth="md">
+      <Box sx={{ py: { xs: 6, sm: 8, md: 12 }, position: 'relative', zIndex: 1 }}>
+        <Container maxWidth="md" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
@@ -490,12 +529,12 @@ const HomePage: React.FC = () => {
           >
             <Paper
               sx={{
-                p: { xs: 4, md: 8 },
+                p: { xs: 3, sm: 4, md: 8 },
                 textAlign: 'center',
                 background: 'var(--bg-glass)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid var(--border-primary)',
-                borderRadius: 4,
+                borderRadius: { xs: 2, md: 4 },
                 position: 'relative',
                 overflow: 'hidden',
               }}
@@ -504,10 +543,11 @@ const HomePage: React.FC = () => {
                 variant="h3"
                 component="h2"
                 gutterBottom
+                className="text-primary"
                 sx={{
                   fontWeight: 800,
-                  mb: 3,
-                  color: 'var(--text-primary)',
+                  mb: { xs: 2, md: 3 },
+                  fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem' },
                 }}
               >
                 Ready to Start Your Adventure?
@@ -515,7 +555,12 @@ const HomePage: React.FC = () => {
               <Typography
                 variant="h6"
                 paragraph
-                sx={{ mb: 4, color: 'var(--text-secondary)', fontWeight: 400 }}
+                className="text-secondary"
+                sx={{ 
+                  mb: { xs: 3, md: 4 }, 
+                  fontWeight: 400,
+                  fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                }}
               >
                 Join millions of travelers who have discovered amazing places with NavPlace.
                 Start planning your next unforgettable journey today.
@@ -528,18 +573,17 @@ const HomePage: React.FC = () => {
                   variant="contained"
                   size="large"
                   onClick={() => navigate('/plan')}
-                  startIcon={<RouteIcon />}
+                  startIcon={<RouteIcon className="icon-primary" />}
+                  className="btn-primary"
                   sx={{
-                    px: 6,
-                    py: 2,
-                    fontSize: '1.2rem',
+                    px: { xs: 4, sm: 5, md: 6 },
+                    py: { xs: 1.5, sm: 2 },
+                    fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
                     fontWeight: 700,
                     borderRadius: 3,
-                    background: 'var(--primary-gradient)',
-                    boxShadow: 'var(--shadow-soft)',
                     '&:hover': {
                       background: 'var(--primary-gradient)',
-                      transform: 'translateY(-3px)',
+                      transform: { xs: 'none', md: 'translateY(-3px)' },
                       boxShadow: 'var(--shadow-strong)',
                     },
                   }}

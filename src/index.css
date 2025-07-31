@@ -254,6 +254,8 @@ code {
   animation: pulse 2s ease-in-out infinite;
 }
 
+
+
 /* Gradient text */
 .gradient-text {
   background: var(--primary-gradient);
@@ -267,11 +269,6 @@ code {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-/* Smooth transitions */
-* {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Custom button styles */
@@ -292,14 +289,156 @@ code {
   box-shadow: var(--shadow-strong);
 }
 
+/* Consistent button styles for all components */
+.btn-primary {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  box-shadow: var(--shadow-soft) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  text-transform: none !important;
+}
+
+.btn-primary:hover {
+  background: var(--primary-gradient) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-strong) !important;
+}
+
+.btn-secondary {
+  background: var(--bg-glass) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  box-shadow: var(--shadow-soft) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  text-transform: none !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-tertiary) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-strong) !important;
+  border-color: var(--border-accent) !important;
+}
+
+/* Icon consistency */
+.icon-primary {
+  color: var(--text-primary) !important;
+  transition: color 0.3s ease !important;
+}
+
+.icon-secondary {
+  color: var(--text-secondary) !important;
+  transition: color 0.3s ease !important;
+}
+
+.icon-accent {
+  color: var(--text-accent) !important;
+  transition: color 0.3s ease !important;
+}
+
+.icon-muted {
+  color: var(--text-muted) !important;
+  transition: color 0.3s ease !important;
+}
+
+/* Toggle button consistency */
+.toggle-button {
+  background: var(--bg-glass) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 12px !important;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.toggle-button:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+.toggle-button.selected {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+  border-color: var(--primary-gradient) !important;
+}
+
+.toggle-button.selected .icon-primary,
+.toggle-button.selected .icon-secondary,
+.toggle-button.selected .icon-accent,
+.toggle-button.selected .icon-muted {
+  color: white !important;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, textarea, select, .MuiButton-root, .MuiToggleButton-root, .MuiIconButton-root {
+  transition: all 0.2s ease;
+}
+
+/* Enhanced theme transitions */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Card consistency */
+.card-modern {
+  background: var(--bg-glass) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 16px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+  box-shadow: var(--shadow-soft) !important;
+}
+
+.card-modern:hover {
+  background: var(--bg-tertiary) !important;
+}
+
+/* Paper consistency */
+.paper-modern {
+  background: var(--bg-glass) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 16px !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease !important;
+}
+
+/* Text consistency */
+.text-primary {
+  color: var(--text-primary) !important;
+  transition: color 0.3s ease !important;
+}
+
+.text-secondary {
+  color: var(--text-secondary) !important;
+  transition: color 0.3s ease !important;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+  transition: color 0.3s ease !important;
+}
+
+.text-accent {
+  color: var(--text-accent) !important;
+  transition: color 0.3s ease !important;
+}
+
 /* Card hover effects */
 .card-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .card-hover:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: var(--shadow-strong);
+  background: var(--bg-tertiary);
 }
 
 /* Travel-themed accent classes */

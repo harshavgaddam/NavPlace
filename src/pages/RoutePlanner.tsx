@@ -21,6 +21,8 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 // import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,7 +41,11 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import ShareIcon from '@mui/icons-material/Share';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ExploreIcon from '@mui/icons-material/Explore';
-
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
+import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
+import TrainIcon from '@mui/icons-material/Train';
 
 import googleMapsService, { 
   Location, 
@@ -62,7 +68,40 @@ interface RoutePlannerState {
   endPredictions: AutocompleteResult[];
   showStartPredictions: boolean;
   showEndPredictions: boolean;
+  transportationMode: 'driving' | 'transit' | 'walking' | 'bicycling';
 }
+
+// Transportation mode options
+const transportationModes = [
+  {
+    value: 'driving',
+    label: 'Car',
+    icon: <DirectionsCarIcon sx={{ fontSize: '1.75rem' }} />,
+    description: 'Fastest route',
+    color: '#0ea5e9',
+  },
+  {
+    value: 'transit',
+    label: 'Transit',
+    icon: <DirectionsBusIcon sx={{ fontSize: '1.75rem' }} />,
+    description: 'Public transport',
+    color: '#8b5cf6',
+  },
+  {
+    value: 'walking',
+    label: 'Walking',
+    icon: <DirectionsWalkIcon sx={{ fontSize: '1.75rem' }} />,
+    description: 'Walking route',
+    color: '#10b981',
+  },
+  {
+    value: 'bicycling',
+    label: 'Bicycle',
+    icon: <DirectionsBikeIcon sx={{ fontSize: '1.75rem' }} />,
+    description: 'Bike route',
+    color: '#f59e0b',
+  },
+];
 
 // Add debounce utility
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number) {
@@ -87,6 +126,7 @@ const RoutePlanner: React.FC = () => {
     endPredictions: [],
     showStartPredictions: false,
     showEndPredictions: false,
+    transportationMode: 'driving',
   });
   const [startLoading, setStartLoading] = useState(false);
   const [endLoading, setEndLoading] = useState(false);
@@ -218,7 +258,9 @@ const RoutePlanner: React.FC = () => {
       // Get route
       const route = await googleMapsService.getRoute(
         state.startLocationDetails,
-        state.endLocationDetails
+        state.endLocationDetails,
+        [], // waypoints
+        state.transportationMode
       );
 
       // Get POIs along the route based on user preferences
@@ -305,16 +347,33 @@ const RoutePlanner: React.FC = () => {
           map,
           label: 'B',
         });
-        // Draw route polyline
+        // Draw route polyline with mode-specific styling
         const routePath = [
           { lat: state.route.start.lat, lng: state.route.start.lng },
           ...state.route.waypoints.map(wp => ({ lat: wp.lat, lng: wp.lng })),
           { lat: state.route.end.lat, lng: state.route.end.lng },
         ];
+        
+        // Get color based on transportation mode
+        const getRouteColor = (mode: string) => {
+          switch (mode) {
+            case 'driving':
+              return '#0ea5e9'; // Blue
+            case 'transit':
+              return '#8b5cf6'; // Purple
+            case 'walking':
+              return '#10b981'; // Green
+            case 'bicycling':
+              return '#f59e0b'; // Orange
+            default:
+              return '#0ea5e9';
+          }
+        };
+        
         new window.google.maps.Polyline({
           path: routePath,
           geodesic: true,
-          strokeColor: '#0ea5e9',
+          strokeColor: getRouteColor(state.transportationMode),
           strokeOpacity: 0.8,
           strokeWeight: 4,
         }).setMap(map);
@@ -343,11 +402,15 @@ const RoutePlanner: React.FC = () => {
   }, [state.route, state.pois]);
 
   return (
-    <Box sx={{ minHeight: '100vh', py: 4, position: 'relative' }}>
-      {/* Background decorative elements */}
-      <motion.div
-        className="float"
-        style={{
+    <Box sx={{ 
+      minHeight: '100vh', 
+      py: { xs: 2, sm: 3, md: 4 }, 
+      position: 'relative',
+      overflow: 'visible',
+    }}>
+      {/* Background decorative elements - hidden on mobile */}
+      <Box
+        sx={{
           position: 'absolute',
           top: '10%',
           right: '5%',
@@ -356,10 +419,15 @@ const RoutePlanner: React.FC = () => {
           background: 'radial-gradient(circle, rgba(44, 90, 160, 0.1) 0%, transparent 70%)',
           borderRadius: '50%',
           zIndex: 0,
+          display: { xs: 'none', md: 'block' },
         }}
       />
 
-      <Container maxWidth="xl">
+      <Container maxWidth="xl" sx={{ 
+        px: { xs: 2, sm: 3, md: 4 },
+        position: 'relative',
+        zIndex: 1,
+      }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -369,54 +437,66 @@ const RoutePlanner: React.FC = () => {
             variant="h2"
             component="h1"
             gutterBottom
+            className="text-primary"
             sx={{
               fontWeight: 800,
               mb: 1,
-              color: 'var(--text-primary)',
+              fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem' },
+              textAlign: { xs: 'center', md: 'left' },
             }}
           >
             Plan Your Journey
           </Typography>
           <Typography
             variant="h6"
+            className="text-muted"
             sx={{
-              mb: 4,
-              color: 'var(--text-muted)',
+              mb: { xs: 3, md: 4 },
               fontWeight: 400,
+              fontSize: { xs: '1rem', sm: '1.125rem' },
+              textAlign: { xs: 'center', md: 'left' },
             }}
           >
             Discover amazing places along your route with AI-powered recommendations
           </Typography>
         </motion.div>
 
-        {/* Route Planning Form */}
-        <Grid container spacing={4}>
-          {/* Route Planning Form */}
-          <Grid item xs={12} md={4}>
+                 {/* Route Planning Form */}
+         <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} sx={{ alignItems: 'flex-start', minHeight: 'fit-content' }}>
+           {/* Route Planning Form */}
+           <Grid item xs={12} lg={4} sx={{ position: 'sticky', top: { lg: 20 }, height: 'fit-content' }}>
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <Paper
-                sx={{
-                  p: 4,
-                  height: 'fit-content',
-                  background: 'var(--bg-glass)',
-                  backdropFilter: 'blur(20px)',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: 4,
-                }}
-              >
+                             <Paper
+                 sx={{
+                   p: { xs: 2, sm: 3, md: 4 },
+                   maxHeight: { lg: 'calc(100vh - 60px)' },
+                   overflow: { lg: 'auto' },
+                   background: 'var(--bg-glass)',
+                   backdropFilter: 'blur(20px)',
+                   border: '1px solid var(--border-primary)',
+                   borderRadius: { xs: 2, md: 4 },
+                   position: 'relative',
+                 }}
+               >
                 <Typography
                   variant="h5"
                   gutterBottom
-                  sx={{ fontWeight: 700, mb: 3, color: 'var(--text-primary)' }}
+                  className="text-primary"
+                  sx={{ 
+                    fontWeight: 700, 
+                    mb: { xs: 2, md: 3 }, 
+                    fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                    textAlign: { xs: 'center', md: 'left' },
+                  }}
                 >
                   Enter Your Journey
                 </Typography>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
                   {/* Start Location */}
                   <Box sx={{ position: 'relative' }}>
                     <TextField
@@ -429,7 +509,7 @@ const RoutePlanner: React.FC = () => {
                       ref={startInputRef}
                       InputProps={{
                         startAdornment: (
-                          <LocationOnIcon sx={{ mr: 1, color: 'var(--text-muted)' }} />
+                          <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
                         ),
                       }}
                     />
@@ -452,6 +532,8 @@ const RoutePlanner: React.FC = () => {
                             borderRadius: 4,
                             maxHeight: 200,
                             overflow: 'auto',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: 'var(--shadow-soft)',
                           }}
                         >
                           {startLoading && (
@@ -476,11 +558,11 @@ const RoutePlanner: React.FC = () => {
                                   }}
                                 >
                                   <ListItemIcon>
-                                    <LocationOnIcon sx={{ color: 'var(--text-muted)' }} />
+                                    <LocationOnIcon className="icon-muted" />
                                   </ListItemIcon>
                                   <ListItemText
                                     primary={prediction.description}
-                                    sx={{ color: 'var(--text-primary)' }}
+                                    className="text-primary"
                                   />
                                 </ListItem>
                               ))}
@@ -503,7 +585,7 @@ const RoutePlanner: React.FC = () => {
                       ref={endInputRef}
                       InputProps={{
                         startAdornment: (
-                          <LocationOnIcon sx={{ mr: 1, color: 'var(--text-muted)' }} />
+                          <LocationOnIcon sx={{ mr: 1 }} className="icon-muted" />
                         ),
                       }}
                     />
@@ -526,6 +608,8 @@ const RoutePlanner: React.FC = () => {
                             borderRadius: 4,
                             maxHeight: 200,
                             overflow: 'auto',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: 'var(--shadow-soft)',
                           }}
                         >
                           {endLoading && (
@@ -550,11 +634,11 @@ const RoutePlanner: React.FC = () => {
                                   }}
                                 >
                                   <ListItemIcon>
-                                    <LocationOnIcon sx={{ color: 'var(--text-muted)' }} />
+                                    <LocationOnIcon className="icon-muted" />
                                   </ListItemIcon>
                                   <ListItemText
                                     primary={prediction.description}
-                                    sx={{ color: 'var(--text-primary)' }}
+                                    className="text-primary"
                                   />
                                 </ListItem>
                               ))}
@@ -565,32 +649,181 @@ const RoutePlanner: React.FC = () => {
                     </AnimatePresence>
                   </Box>
 
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Button
-                      variant="contained"
-                      size="large"
-                      onClick={handlePlanRoute}
-                      disabled={state.loading || !state.startLocationDetails || !state.endLocationDetails}
-                      startIcon={state.loading ? <CircularProgress size={20} /> : <DirectionsIcon />}
-                      sx={{
-                        py: 2,
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        background: 'var(--primary-gradient)',
-                        boxShadow: 'var(--shadow-soft)',
-                        '&:hover': {
-                          background: 'var(--primary-gradient)',
-                          transform: 'translateY(-2px)',
-                          boxShadow: 'var(--shadow-strong)',
-                        },
+                  {/* Transportation Mode Selection */}
+                  <Box sx={{ mt: { xs: 2, md: 3 } }}>
+                    <Typography 
+                      variant="subtitle2" 
+                      className="text-muted"
+                      sx={{ 
+                        mb: 1,
+                        textAlign: { xs: 'center', md: 'left' },
                       }}
                     >
-                      {state.loading ? 'Planning Route...' : 'Plan Route'}
-                    </Button>
-                  </motion.div>
+                      Transportation Mode
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      className="text-secondary"
+                      sx={{ 
+                        mb: 2, 
+                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                        textAlign: { xs: 'center', md: 'left' },
+                      }}
+                    >
+                      Choose your preferred mode of transportation for accurate route calculation
+                    </Typography>
+                    <Box sx={{ 
+                      width: '100%',
+                      background: 'var(--bg-glass)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: { xs: 2, md: 4 },
+                      p: { xs: 0.5, md: 1 },
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: { xs: 0.5, md: 1 },
+                      flexWrap: 'nowrap',
+                      overflow: 'hidden',
+                    }}>
+                      {transportationModes.map((mode) => (
+                        <Tooltip
+                          key={mode.value}
+                          title={`${mode.description} - Click to select ${mode.label} mode`}
+                          placement="top"
+                          arrow
+                          sx={{
+                            '& .MuiTooltip-tooltip': {
+                              background: 'var(--bg-glass-strong)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-primary)',
+                              borderRadius: 2,
+                              fontSize: '0.875rem',
+                              backdropFilter: 'blur(10px)',
+                            },
+                          }}
+                        >
+                          <Button
+                            variant={state.transportationMode === mode.value ? "contained" : "outlined"}
+                            onClick={() => {
+                              setState(prev => ({ ...prev, transportationMode: mode.value as 'driving' | 'transit' | 'walking' | 'bicycling' }));
+                              // Auto-recalculate route if we have both locations
+                              if (state.startLocationDetails && state.endLocationDetails && state.route) {
+                                handlePlanRoute();
+                              }
+                            }}
+                            sx={{
+                              flex: 1,
+                              minHeight: { xs: 60, sm: 70, md: 80 },
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: { xs: 0.25, sm: 0.5, md: 0.75 },
+                              p: { xs: 0.75, sm: 1, md: 1.5 },
+                              borderRadius: 3,
+                              border: '1px solid transparent',
+                              transition: 'all 0.2s ease',
+                              background: state.transportationMode === mode.value 
+                                ? 'var(--primary-gradient)' 
+                                : 'var(--bg-glass)',
+                              color: state.transportationMode === mode.value 
+                                ? 'white' 
+                                : 'var(--text-primary)',
+                              '&:hover': {
+                                background: state.transportationMode === mode.value 
+                                  ? 'var(--primary-gradient)' 
+                                  : 'var(--bg-tertiary)',
+                                transform: 'translateY(-1px)',
+                              },
+                              '& .MuiSvgIcon-root': {
+                                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                                transition: 'color 0.2s ease',
+                                color: state.transportationMode === mode.value 
+                                  ? 'white' 
+                                  : 'var(--text-primary)',
+                              },
+                              '& .MuiTypography-root': {
+                                color: state.transportationMode === mode.value 
+                                  ? 'white' 
+                                  : 'var(--text-primary)',
+                                transition: 'color 0.2s ease',
+                              },
+                            }}
+                          >
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              mb: 0.5,
+                            }}>
+                              {React.cloneElement(mode.icon, { 
+                                className: state.transportationMode === mode.value ? 'icon-primary' : 'icon-muted',
+                                sx: { 
+                                  fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' },
+                                  color: state.transportationMode === mode.value ? 'white' : 'var(--text-primary)',
+                                }
+                              })}
+                            </Box>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 600,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem', md: '0.8rem' },
+                                textAlign: 'center',
+                                lineHeight: 1.2,
+                                color: state.transportationMode === mode.value 
+                                  ? 'white' 
+                                  : 'var(--text-primary)',
+                              }}
+                            >
+                              {mode.label}
+                            </Typography>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                textAlign: 'center',
+                                fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' },
+                                lineHeight: 1.1,
+                                opacity: 0.8,
+                                display: { xs: 'none', sm: 'block' },
+                                color: state.transportationMode === mode.value 
+                                  ? 'white' 
+                                  : 'var(--text-muted)',
+                              }}
+                            >
+                              {mode.description}
+                            </Typography>
+                          </Button>
+                        </Tooltip>
+                      ))}
+                    </Box>
+                  </Box>
+
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handlePlanRoute}
+                    disabled={state.loading || !state.startLocationDetails || !state.endLocationDetails}
+                    startIcon={state.loading ? <CircularProgress size={20} /> : <DirectionsIcon className="icon-primary" />}
+                    className="btn-primary"
+                    sx={{
+                      py: 2,
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                      width: '100%',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        background: 'var(--primary-gradient)',
+                        transform: 'translateY(-1px)',
+                      },
+                      '&:disabled': {
+                        opacity: 0.6,
+                        transform: 'none',
+                      },
+                    }}
+                  >
+                    {state.loading ? 'Planning Route...' : 'Plan Route'}
+                  </Button>
 
                   <AnimatePresence>
                     {state.error && (
@@ -619,7 +852,8 @@ const RoutePlanner: React.FC = () => {
                         <Typography
                           variant="h6"
                           gutterBottom
-                          sx={{ fontWeight: 700, color: 'var(--text-primary)', mb: 2 }}
+                          className="text-primary"
+                          sx={{ fontWeight: 700, mb: 2 }}
                         >
                           Route Summary
                         </Typography>
@@ -632,22 +866,41 @@ const RoutePlanner: React.FC = () => {
                           }}
                         >
                           <CardContent>
+                            {/* Transportation Mode */}
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                              <StraightenIcon sx={{ mr: 1, color: 'var(--color-ocean)' }} />
-                              <Typography variant="body1" sx={{ color: 'var(--text-primary)' }}>
+                              {React.cloneElement(transportationModes.find(mode => mode.value === state.transportationMode)?.icon || <div />, { className: 'icon-primary' })}
+                              <Typography variant="body1" className="text-primary" sx={{ ml: 1 }}>
+                                <strong>Mode:</strong> {transportationModes.find(mode => mode.value === state.transportationMode)?.label}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                              <StraightenIcon sx={{ mr: 1 }} className="icon-accent" />
+                              <Typography variant="body1" className="text-primary">
                                 <strong>Distance:</strong> {state.route.distance.toFixed(1)} km
                               </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                              <AccessTimeIcon sx={{ mr: 1, color: 'var(--color-ocean)' }} />
-                              <Typography variant="body1" sx={{ color: 'var(--text-primary)' }}>
+                              <AccessTimeIcon sx={{ mr: 1 }} className="icon-accent" />
+                              <Typography variant="body1" className="text-primary">
                                 <strong>Duration:</strong> {Math.round(state.route.duration)} minutes
+                                {state.transportationMode === 'transit' && ' (including transfers)'}
+                                {state.transportationMode === 'walking' && ' (walking time)'}
+                                {state.transportationMode === 'bicycling' && ' (cycling time)'}
                               </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <SpeedIcon sx={{ mr: 1, color: 'var(--color-ocean)' }} />
-                              <Typography variant="body1" sx={{ color: 'var(--text-primary)' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                              <SpeedIcon sx={{ mr: 1 }} className="icon-accent" />
+                              <Typography variant="body1" className="text-primary">
                                 <strong>POIs Found:</strong> {state.pois.length}
+                              </Typography>
+                            </Box>
+                            {/* Mode-specific information */}
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Typography variant="body2" className="text-secondary">
+                                {state.transportationMode === 'driving' && '🚗 Best route for car travel'}
+                                {state.transportationMode === 'transit' && '🚌 Public transportation route'}
+                                {state.transportationMode === 'walking' && '🚶 Walking-friendly route'}
+                                {state.transportationMode === 'bicycling' && '🚴 Bike-friendly route'}
                               </Typography>
                             </Box>
                           </CardContent>
@@ -661,7 +914,7 @@ const RoutePlanner: React.FC = () => {
           </Grid>
 
           {/* Map */}
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} lg={8}>
             <motion.div
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
@@ -669,18 +922,30 @@ const RoutePlanner: React.FC = () => {
             >
               <Paper
                 sx={{
-                  p: 2,
-                  height: 600,
+                  p: { xs: 1, sm: 2 },
+                  height: { xs: 350, sm: 450, md: 550, lg: 650 },
                   background: 'var(--bg-glass)',
                   backdropFilter: 'blur(20px)',
                   border: '1px solid var(--border-primary)',
-                  borderRadius: 4,
+                  borderRadius: { xs: 2, md: 4 },
+                  display: 'flex',
+                  flexDirection: 'column',
                 }}
               >
-                <Box sx={{ height: '100%', borderRadius: 2, overflow: 'hidden' }}>
+                <Box sx={{ 
+                  flex: 1, 
+                  borderRadius: 2, 
+                  overflow: 'hidden',
+                  minHeight: { xs: 300, sm: 400, md: 500, lg: 600 },
+                }}>
                   <div
                     id="google-map"
-                    style={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      borderRadius: 'inherit',
+                      minHeight: 'inherit',
+                    }}
                   />
                 </Box>
               </Paper>
@@ -699,31 +964,38 @@ const RoutePlanner: React.FC = () => {
                 >
                   <Paper
                     sx={{
-                      p: 4,
+                      p: { xs: 2, sm: 3, md: 4 },
                       background: 'var(--bg-glass)',
                       backdropFilter: 'blur(20px)',
                       border: '1px solid var(--border-primary)',
-                      borderRadius: 4,
+                      borderRadius: { xs: 2, md: 4 },
                     }}
                   >
                     <Typography
                       variant="h4"
                       gutterBottom
+                      className="text-primary"
                       sx={{
                         fontWeight: 700,
-                        mb: 3,
-                        color: 'var(--text-primary)',
+                        mb: { xs: 2, md: 3 },
                         display: 'flex',
                         alignItems: 'center',
+                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        textAlign: { xs: 'center', sm: 'left' },
                       }}
                     >
-                      <ExploreIcon sx={{ mr: 2, color: 'var(--color-ocean)' }} />
+                      <ExploreIcon sx={{ 
+                        mr: { xs: 0, sm: 2 }, 
+                        mb: { xs: 1, sm: 0 },
+                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+                      }} className="icon-accent" />
                       Recommended Places ({state.pois.length})
                     </Typography>
                     
-                    <Grid container spacing={3}>
+                    <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ alignItems: 'stretch' }}>
                       {state.pois.slice(0, 8).map((poi, index) => (
-                        <Grid item xs={12} md={6} key={poi.id}>
+                        <Grid item xs={12} sm={6} lg={4} key={poi.id} sx={{ display: 'flex' }}>
                           <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -734,53 +1006,84 @@ const RoutePlanner: React.FC = () => {
                                 background: 'var(--bg-glass-strong)',
                                 backdropFilter: 'blur(10px)',
                                 border: '1px solid var(--border-primary)',
-                                borderRadius: 3,
+                                borderRadius: { xs: 2, md: 3 },
                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                width: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
                                 '&:hover': {
-                                  transform: 'translateY(-4px)',
+                                  transform: { xs: 'none', md: 'translateY(-4px)' },
                                   boxShadow: 'var(--shadow-strong)',
                                 },
                               }}
                             >
-                              <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+                              <CardContent sx={{ 
+                                p: { xs: 2, md: 3 },
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                              }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'flex-start', 
+                                  mb: 2,
+                                  flexDirection: { xs: 'column', sm: 'row' },
+                                  textAlign: { xs: 'center', sm: 'left' },
+                                }}>
                                   <Avatar
                                     sx={{
                                       background: getPoiColor(poi.type),
-                                      mr: 2,
-                                      width: 48,
-                                      height: 48,
+                                      mr: { xs: 0, sm: 2 },
+                                      mb: { xs: 1, sm: 0 },
+                                      width: { xs: 40, sm: 48 },
+                                      height: { xs: 40, sm: 48 },
                                     }}
                                   >
                                     {getPoiIcon(poi.type)}
                                   </Avatar>
-                                  <Box sx={{ flexGrow: 1 }}>
+                                  <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
                                     <Typography
                                       variant="h6"
-                                      sx={{ fontWeight: 700, color: 'var(--text-primary)', mb: 0.5 }}
+                                      className="text-primary"
+                                      sx={{ 
+                                        fontWeight: 700, 
+                                        mb: 0.5,
+                                        fontSize: { xs: '1rem', sm: '1.25rem' },
+                                      }}
                                     >
                                       {poi.name}
                                     </Typography>
                                     {poi.rating && (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                      <Box sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        mb: 1,
+                                        justifyContent: { xs: 'center', sm: 'flex-start' },
+                                      }}>
                                         <Rating value={poi.rating} readOnly size="small" />
                                         <Typography
                                           variant="body2"
-                                          sx={{ ml: 1, color: 'var(--text-secondary)' }}
+                                          className="text-secondary"
+                                          sx={{ ml: 1 }}
                                         >
                                           {poi.rating}
                                         </Typography>
                                       </Box>
                                     )}
                                   </Box>
-                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    gap: 0.5,
+                                    justifyContent: { xs: 'center', sm: 'flex-start' },
+                                    mt: { xs: 1, sm: 0 },
+                                  }}>
                                     <Tooltip title="Save">
-                                      <IconButton size="small" sx={{ color: 'var(--text-muted)' }}>
+                                      <IconButton size="small" className="icon-muted">
                                         <BookmarkIcon />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Share">
-                                      <IconButton size="small" sx={{ color: 'var(--text-muted)' }}>
+                                      <IconButton size="small" className="icon-muted">
                                         <ShareIcon />
                                       </IconButton>
                                     </Tooltip>
@@ -789,16 +1092,24 @@ const RoutePlanner: React.FC = () => {
 
                                 <Typography
                                   variant="body2"
+                                  className="text-secondary"
                                   sx={{
-                                    color: 'var(--text-secondary)',
                                     mb: 2,
                                     lineHeight: 1.5,
+                                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                                    textAlign: { xs: 'center', sm: 'left' },
                                   }}
                                 >
                                   {poi.description || `${poi.type} - ${poi.distance.toFixed(1)}km away`}
                                 </Typography>
 
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  flexWrap: 'wrap', 
+                                  gap: 1, 
+                                  mb: 2,
+                                  justifyContent: { xs: 'center', sm: 'flex-start' },
+                                }}>
                                   {poi.tags?.slice(0, 3).map((tag) => (
                                     <Chip
                                       key={tag}
@@ -807,7 +1118,7 @@ const RoutePlanner: React.FC = () => {
                                       sx={{
                                         background: 'var(--bg-tertiary)',
                                         color: 'var(--text-primary)',
-                                        fontSize: '0.75rem',
+                                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
                                       }}
                                     />
                                   ))}
@@ -815,19 +1126,33 @@ const RoutePlanner: React.FC = () => {
 
                                 <Divider sx={{ my: 2, borderColor: 'var(--border-primary)' }} />
 
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <Box>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  flexDirection: { xs: 'column', sm: 'row' },
+                                  gap: { xs: 1, sm: 0 },
+                                  mt: 'auto',
+                                }}>
+                                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
                                     {poi.price && (
                                       <Typography
                                         variant="body2"
-                                        sx={{ color: 'var(--text-secondary)', mb: 0.5 }}
+                                        sx={{ 
+                                          color: 'var(--text-secondary)', 
+                                          mb: 0.5,
+                                          fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                                        }}
                                       >
                                         <strong>Price:</strong> {poi.price}
                                       </Typography>
                                     )}
                                     <Typography
                                       variant="body2"
-                                      sx={{ color: 'var(--text-secondary)' }}
+                                      sx={{ 
+                                        color: 'var(--text-secondary)',
+                                        fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                                      }}
                                     >
                                       <strong>Distance:</strong> {poi.distance.toFixed(1)} km away
                                     </Typography>
@@ -839,6 +1164,7 @@ const RoutePlanner: React.FC = () => {
                                     sx={{
                                       borderColor: 'var(--border-primary)',
                                       color: 'var(--text-primary)',
+                                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                       '&:hover': {
                                         borderColor: 'var(--color-sunset)',
                                         backgroundColor: 'rgba(245, 158, 11, 0.1)',
