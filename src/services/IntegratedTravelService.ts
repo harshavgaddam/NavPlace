@@ -71,6 +71,22 @@ class IntegratedTravelService {
     try {
       console.log('Getting comprehensive recommendations for:', startLocation, 'to', endLocation);
       
+      // Check API keys first
+      const googleMapsApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+      const geminiApiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      
+      console.log('API Keys check:');
+      console.log('- Google Maps API Key:', googleMapsApiKey ? '✅ Found' : '❌ Missing');
+      console.log('- Gemini API Key:', geminiApiKey ? '✅ Found' : '❌ Missing');
+      
+      if (!googleMapsApiKey) {
+        throw new Error('Google Maps API key is missing. Please set REACT_APP_GOOGLE_MAPS_API_KEY in your .env file');
+      }
+      
+      if (!geminiApiKey) {
+        throw new Error('Gemini API key is missing. Please set REACT_APP_GEMINI_API_KEY in your .env file');
+      }
+      
       // Step 1: Get route from Google Maps
       console.log('Getting location details for start location...');
       const startDetails = await this.getLocationDetails(startLocation);
@@ -90,10 +106,14 @@ class IntegratedTravelService {
       console.log('Route obtained:', route);
 
       // Step 2: Get POIs from Google Maps
+      console.log('Getting POIs along route...');
       const placeTypes = this.getPlaceTypesFromPreferences(preferences.userPreferences);
+      console.log('Place types to search:', placeTypes);
       const pois = await googleMapsService.searchPlacesAlongRoute(route, placeTypes, 5);
+      console.log('POIs found:', pois.length);
 
       // Step 3: Get AI recommendations from Gemini
+      console.log('Getting AI recommendations from Gemini...');
       const routeContext: RouteContext = {
         startLocation,
         endLocation,
@@ -108,9 +128,12 @@ class IntegratedTravelService {
         preferences.userPreferences,
         pois
       );
+      console.log('Gemini analysis completed');
 
       // Step 4: Combine and enhance recommendations
+      console.log('Combining recommendations...');
       const recommendations = this.combineRecommendations(pois, geminiAnalysis.suggestions);
+      console.log('Total recommendations:', recommendations.length);
 
       return {
         route,
@@ -123,7 +146,11 @@ class IntegratedTravelService {
 
     } catch (error) {
       console.error('Error getting comprehensive recommendations:', error);
-      throw new Error('Failed to get travel recommendations');
+      if (error instanceof Error) {
+        throw new Error(`Failed to get travel recommendations: ${error.message}`);
+      } else {
+        throw new Error('Failed to get travel recommendations');
+      }
     }
   }
 
