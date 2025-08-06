@@ -47,17 +47,13 @@ import DirectionsWalkIcon from '@mui/icons-material/DirectionsWalk';
 import DirectionsBikeIcon from '@mui/icons-material/DirectionsBike';
 import TrainIcon from '@mui/icons-material/Train';
 
-import googleMapsService, { 
-  Location, 
-  Route, 
-  PlaceOfInterest, 
-  AutocompleteResult 
-} from '../services/GoogleMapsService';
-import geminiService, { 
-  UserPreference, 
-  GeminiPlaceSuggestion, 
-  GeminiAnalysis 
-} from '../services/GeminiService';
+import integratedTravelService, { 
+  TravelRecommendation, 
+  EnhancedRouteAnalysis,
+  TravelPreferences
+} from '../services/IntegratedTravelService';
+import { UserPreference } from '../services/GeminiService';
+import { Location, Route, PlaceOfInterest, AutocompleteResult } from '../services/GoogleMapsService';
 import PreferencesPanel from '../components/PreferencesPanel';
 import PlaceDetailsModal from '../components/PlaceDetailsModal';
 
@@ -68,7 +64,7 @@ interface RoutePlannerState {
   startLocationDetails: Location | null;
   endLocationDetails: Location | null;
   route: Route | null;
-  pois: PlaceOfInterest[];
+  recommendations: TravelRecommendation[];
   loading: boolean;
   error: string;
   startPredictions: AutocompleteResult[];
@@ -77,10 +73,9 @@ interface RoutePlannerState {
   showEndPredictions: boolean;
   transportationMode: 'driving' | 'transit' | 'walking' | 'bicycling';
   userPreferences: UserPreference[];
-  geminiSuggestions: GeminiPlaceSuggestion[];
-  geminiAnalysis: GeminiAnalysis | null;
+  enhancedAnalysis: EnhancedRouteAnalysis | null;
   showPreferences: boolean;
-  selectedPlace: GeminiPlaceSuggestion | null;
+  selectedPlace: TravelRecommendation | null;
   showPlaceModal: boolean;
 }
 
@@ -132,7 +127,7 @@ const RoutePlanner: React.FC = () => {
     startLocationDetails: null,
     endLocationDetails: null,
     route: null,
-    pois: [],
+    recommendations: [],
     loading: false,
     error: '',
     startPredictions: [],
@@ -149,8 +144,7 @@ const RoutePlanner: React.FC = () => {
       { category: 'lodging', interestLevel: 3 },
       { category: 'photography', interestLevel: 3 },
     ],
-    geminiSuggestions: [],
-    geminiAnalysis: null,
+    enhancedAnalysis: null,
     showPreferences: false,
     selectedPlace: null,
     showPlaceModal: false,
@@ -170,7 +164,7 @@ const RoutePlanner: React.FC = () => {
         setStartLoading(true);
         setStartError('');
         try {
-          const predictions = await googleMapsService.getPlacePredictions(value);
+          const predictions = await integratedTravelService.getAutocompleteSuggestions(value);
           setState(prev => ({
             ...prev,
             startPredictions: predictions.slice(0, 5),
@@ -204,7 +198,7 @@ const RoutePlanner: React.FC = () => {
         setEndLoading(true);
         setEndError('');
         try {
-          const predictions = await googleMapsService.getPlacePredictions(value);
+          const predictions = await integratedTravelService.getAutocompleteSuggestions(value);
           setState(prev => ({
             ...prev,
             endPredictions: predictions.slice(0, 5),
@@ -248,7 +242,7 @@ const RoutePlanner: React.FC = () => {
   const handlePredictionSelect = async (prediction: AutocompleteResult, isStart: boolean) => {
     try {
       if (isStart) setStartLoading(true); else setEndLoading(true);
-      const locationDetails = await googleMapsService.getPlaceDetails(prediction.placeId);
+      const locationDetails = await integratedTravelService.getPlaceDetails(prediction.placeId);
       if (isStart) {
         setState(prev => ({
           ...prev,
@@ -282,47 +276,26 @@ const RoutePlanner: React.FC = () => {
     setState(prev => ({ ...prev, loading: true, error: '' }));
 
     try {
-      // Get route
-      const route = await googleMapsService.getRoute(
-        state.startLocationDetails,
-        state.endLocationDetails,
-        [], // waypoints
-        state.transportationMode
-      );
+      // Get comprehensive recommendations using integrated service
+      const travelPreferences: TravelPreferences = {
+        userPreferences: state.userPreferences,
+        travelPurpose: 'general travel'
+      };
 
-      // Get POIs along the route based on user preferences
-      const placeTypes = ['restaurant', 'museum', 'park', 'shopping_mall', 'tourist_attraction'];
-      const pois = await googleMapsService.searchPlacesAlongRoute(route, placeTypes, 5);
-
-      // Get AI-powered recommendations
-      try {
-        const geminiAnalysis = await geminiService.getPersonalizedRecommendations(
+      const enhancedAnalysis = await integratedTravelService.getComprehensiveRecommendations(
           state.startLocation,
           state.endLocation,
-          route.distance,
-          route.duration,
           state.transportationMode,
-          state.userPreferences,
-          pois
+        travelPreferences
         );
 
         setState(prev => ({
           ...prev,
-          route,
-          pois,
-          geminiSuggestions: geminiAnalysis.suggestions,
-          geminiAnalysis,
+        route: enhancedAnalysis.route,
+        recommendations: enhancedAnalysis.recommendations,
+        enhancedAnalysis,
           loading: false,
         }));
-      } catch (geminiError) {
-        console.error('Gemini API error:', geminiError);
-        setState(prev => ({
-          ...prev,
-          route,
-          pois,
-          loading: false,
-        }));
-      }
     } catch (error) {
       console.error('Route planning error:', error);
       setState(prev => ({
@@ -394,7 +367,7 @@ const RoutePlanner: React.FC = () => {
   };
 
   // Handle place selection from map
-  const handlePlaceSelect = (place: GeminiPlaceSuggestion) => {
+  const handlePlaceSelect = (place: TravelRecommendation) => {
     setState(prev => ({ 
       ...prev, 
       selectedPlace: place, 
@@ -412,7 +385,7 @@ const RoutePlanner: React.FC = () => {
   };
 
   // Handle reroute with selected place
-  const handleReroute = (place: GeminiPlaceSuggestion) => {
+  const handleReroute = (place: TravelRecommendation) => {
     // TODO: Implement rerouting logic
     console.log('Rerouting to include:', place.name);
     handlePlaceModalClose();
@@ -552,42 +525,27 @@ const RoutePlanner: React.FC = () => {
         });
       }
 
-             // Add POI markers
-       state.pois.forEach((poi) => {
-         new window.google.maps.Marker({
-           position: { lat: poi.location.lat, lng: poi.location.lng },
-           map,
-           title: poi.name,
-           icon: {
-             path: window.google.maps.SymbolPath.CIRCLE,
-             scale: 6,
-             fillColor: getPoiColor(poi.type),
-             fillOpacity: 0.8,
-             strokeColor: '#ffffff',
-             strokeWeight: 1
-           }
-         });
-       });
-
-       // Add Gemini AI suggestion markers
-       state.geminiSuggestions.forEach((suggestion) => {
+             // Add recommendation markers
+       state.recommendations.forEach((recommendation) => {
          const marker = new window.google.maps.Marker({
-           position: { lat: suggestion.location.lat, lng: suggestion.location.lng },
+           position: { lat: recommendation.location.lat, lng: recommendation.location.lng },
            map,
-           title: suggestion.name,
+           title: recommendation.name,
            icon: {
              path: window.google.maps.SymbolPath.CIRCLE,
-             scale: 8,
-             fillColor: getGeminiSuggestionColor(suggestion.importance),
-             fillOpacity: 0.9,
+             scale: recommendation.source === 'gemini' ? 8 : 6,
+             fillColor: recommendation.source === 'gemini' ? 
+               getGeminiSuggestionColor(recommendation.importance) : 
+               getPoiColor(recommendation.type),
+             fillOpacity: recommendation.source === 'gemini' ? 0.9 : 0.8,
              strokeColor: '#ffffff',
-             strokeWeight: 2
+             strokeWeight: recommendation.source === 'gemini' ? 2 : 1
            }
          });
 
-         // Add click listener for AI suggestions
+         // Add click listener for recommendations
          marker.addListener('click', () => {
-           handlePlaceSelect(suggestion);
+           handlePlaceSelect(recommendation);
          });
        });
     }
@@ -637,8 +595,8 @@ const RoutePlanner: React.FC = () => {
     } else if (window.google) {
       renderMap();
     }
-    // Re-render map when state.route or state.pois changes
-  }, [state.route, state.pois, state.transportationMode]);
+    // Re-render map when state.route or state.recommendations changes
+  }, [state.route, state.recommendations, state.transportationMode]);
 
   return (
     <Box sx={{ 
@@ -1154,7 +1112,7 @@ const RoutePlanner: React.FC = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                               <SpeedIcon sx={{ mr: 1 }} className="icon-accent" />
                               <Typography variant="body1" className="text-primary">
-                                <strong>POIs Found:</strong> {state.pois.length}
+                                <strong>Recommendations Found:</strong> {state.recommendations.length}
                               </Typography>
                             </Box>
                             {/* Mode-specific information */}
@@ -1215,9 +1173,9 @@ const RoutePlanner: React.FC = () => {
             </motion.div>
           </Grid>
 
-          {/* Points of Interest */}
+          {/* Travel Recommendations */}
           <AnimatePresence>
-            {state.pois.length > 0 && (
+            {state.recommendations.length > 0 && (
               <Grid item xs={12}>
                 <motion.div
                   initial={{ opacity: 0, y: 50 }}
@@ -1253,23 +1211,23 @@ const RoutePlanner: React.FC = () => {
                          mb: { xs: 1, sm: 0 },
                          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
                        }} className="icon-accent" />
-                       AI Recommendations ({state.pois.length + state.geminiSuggestions.length})
+                       AI-Powered Recommendations ({state.recommendations.length})
                      </Typography>
 
-                     {state.geminiAnalysis && (
+                     {state.enhancedAnalysis && (
                        <Box sx={{ mb: 3, p: 2, background: 'var(--bg-tertiary)', borderRadius: 2 }}>
                          <Typography variant="body1" className="text-primary" sx={{ fontWeight: 600, mb: 1 }}>
                            🤖 AI Route Analysis
                          </Typography>
                          <Typography variant="body2" className="text-secondary" sx={{ mb: 2 }}>
-                           {state.geminiAnalysis.routeInsights}
+                           {state.enhancedAnalysis.aiAnalysis.routeInsights}
                          </Typography>
-                         {state.geminiAnalysis.personalizedTips.length > 0 && (
+                         {state.enhancedAnalysis.aiAnalysis.personalizedTips.length > 0 && (
                            <Box>
                              <Typography variant="body2" className="text-accent" sx={{ fontWeight: 600, mb: 1 }}>
                                Personalized Tips:
                              </Typography>
-                             {state.geminiAnalysis.personalizedTips.map((tip, index) => (
+                             {state.enhancedAnalysis.aiAnalysis.personalizedTips.map((tip: string, index: number) => (
                                <Typography key={index} variant="body2" className="text-secondary" sx={{ ml: 2 }}>
                                  • {tip}
                                </Typography>
@@ -1280,9 +1238,9 @@ const RoutePlanner: React.FC = () => {
                      )}
                     
                                          <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ alignItems: 'stretch' }}>
-                       {/* Regular POIs */}
-                       {state.pois.slice(0, 4).map((poi, index) => (
-                         <Grid item xs={12} sm={6} lg={4} key={poi.id} sx={{ display: 'flex' }}>
+                       {/* Travel Recommendations */}
+                       {state.recommendations.slice(0, 8).map((recommendation, index) => (
+                         <Grid item xs={12} sm={6} lg={4} key={recommendation.id} sx={{ display: 'flex' }}>
                           <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -1298,11 +1256,16 @@ const RoutePlanner: React.FC = () => {
                                 width: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
+                                cursor: recommendation.source === 'gemini' ? 'pointer' : 'default',
                                 '&:hover': {
                                   transform: { xs: 'none', md: 'translateY(-4px)' },
                                   boxShadow: 'var(--shadow-strong)',
+                                  ...(recommendation.source === 'gemini' && {
+                                    borderColor: getGeminiSuggestionColor(recommendation.importance),
+                                  }),
                                 },
                               }}
+                              onClick={() => recommendation.source === 'gemini' && handlePlaceSelect(recommendation)}
                             >
                               <CardContent sx={{ 
                                 p: { xs: 2, md: 3 },
@@ -1319,44 +1282,45 @@ const RoutePlanner: React.FC = () => {
                                 }}>
                                   <Avatar
                                     sx={{
-                                      background: getPoiColor(poi.type),
+                                      background: recommendation.source === 'gemini' ? 
+                                        getGeminiSuggestionColor(recommendation.importance) : 
+                                        getPoiColor(recommendation.type),
                                       mr: { xs: 0, sm: 2 },
                                       mb: { xs: 1, sm: 0 },
                                       width: { xs: 40, sm: 48 },
                                       height: { xs: 40, sm: 48 },
                                     }}
                                   >
-                                    {getPoiIcon(poi.type)}
+                                    {recommendation.source === 'gemini' ? '🤖' : getPoiIcon(recommendation.type)}
                                   </Avatar>
                                   <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                     <Typography
                                       variant="h6"
                                       className="text-primary"
                                       sx={{ 
                                         fontWeight: 700, 
-                                        mb: 0.5,
                                         fontSize: { xs: '1rem', sm: '1.25rem' },
                                       }}
                                     >
-                                      {poi.name}
+                                        {recommendation.name}
                                     </Typography>
-                                    {poi.rating && (
-                                      <Box sx={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        mb: 1,
-                                        justifyContent: { xs: 'center', sm: 'flex-start' },
-                                      }}>
-                                        <Rating value={poi.rating} readOnly size="small" />
-                                        <Typography
-                                          variant="body2"
-                                          className="text-secondary"
-                                          sx={{ ml: 1 }}
-                                        >
-                                          {poi.rating}
-                                        </Typography>
-                                      </Box>
-                                    )}
+                                      {recommendation.source === 'gemini' && (
+                                        <Chip
+                                          label={recommendation.importance}
+                                          size="small"
+                                          sx={{
+                                            background: getGeminiSuggestionColor(recommendation.importance),
+                                            color: 'white',
+                                            fontSize: '0.6rem',
+                                            height: 20,
+                                          }}
+                                        />
+                                      )}
+                                    </Box>
+                                    <Typography variant="body2" className="text-muted">
+                                      {recommendation.type} • {formatDistance(recommendation.distance)} from route
+                                    </Typography>
                                   </Box>
                                   <Box sx={{ 
                                     display: 'flex', 
@@ -1387,7 +1351,7 @@ const RoutePlanner: React.FC = () => {
                                     textAlign: { xs: 'center', sm: 'left' },
                                   }}
                                 >
-                                                                     {poi.description || `${poi.type} - ${formatDistance(poi.distance)} away`}
+                                  {recommendation.description}
                                 </Typography>
 
                                 <Box sx={{ 
@@ -1397,9 +1361,9 @@ const RoutePlanner: React.FC = () => {
                                   mb: 2,
                                   justifyContent: { xs: 'center', sm: 'flex-start' },
                                 }}>
-                                  {poi.tags?.slice(0, 3).map((tag) => (
+                                  {recommendation.tags.slice(0, 3).map((tag, tagIndex) => (
                                     <Chip
-                                      key={tag}
+                                      key={tagIndex}
                                       label={tag}
                                       size="small"
                                       sx={{
@@ -1422,7 +1386,7 @@ const RoutePlanner: React.FC = () => {
                                   mt: 'auto',
                                 }}>
                                   <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                                    {poi.price && (
+                                    {recommendation.costLevel && (
                                       <Typography
                                         variant="body2"
                                         sx={{ 
@@ -1431,7 +1395,7 @@ const RoutePlanner: React.FC = () => {
                                           fontSize: { xs: '0.8rem', sm: '0.875rem' },
                                         }}
                                       >
-                                        <strong>Price:</strong> {poi.price}
+                                        <strong>Cost:</strong> {recommendation.costLevel}
                                       </Typography>
                                     )}
                                     <Typography
@@ -1441,7 +1405,7 @@ const RoutePlanner: React.FC = () => {
                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
                                       }}
                                     >
-                                                                             <strong>Distance:</strong> {formatDistance(poi.distance)} away
+                                      <strong>Distance:</strong> {formatDistance(recommendation.distance)} away
                                     </Typography>
                                   </Box>
                                   <Button
@@ -1467,173 +1431,7 @@ const RoutePlanner: React.FC = () => {
                                                  </Grid>
                        ))}
 
-                       {/* AI Suggestions */}
-                       {state.geminiSuggestions.slice(0, 4).map((suggestion, index) => (
-                         <Grid item xs={12} sm={6} lg={4} key={suggestion.id} sx={{ display: 'flex' }}>
-                           <motion.div
-                             initial={{ opacity: 0, y: 20 }}
-                             animate={{ opacity: 1, y: 0 }}
-                             transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
-                             style={{ width: '100%' }}
-                           >
-                             <Card
-                               sx={{
-                                 background: 'var(--bg-glass-strong)',
-                                 backdropFilter: 'blur(10px)',
-                                 border: '1px solid var(--border-primary)',
-                                 borderRadius: { xs: 2, md: 3 },
-                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                 width: '100%',
-                                 display: 'flex',
-                                 flexDirection: 'column',
-                                 cursor: 'pointer',
-                                 '&:hover': {
-                                   transform: { xs: 'none', md: 'translateY(-4px)' },
-                                   boxShadow: 'var(--shadow-strong)',
-                                   borderColor: getGeminiSuggestionColor(suggestion.importance),
-                                 },
-                               }}
-                               onClick={() => handlePlaceSelect(suggestion)}
-                             >
-                               <CardContent sx={{ 
-                                 p: { xs: 2, md: 3 },
-                                 flex: 1,
-                                 display: 'flex',
-                                 flexDirection: 'column',
-                               }}>
-                                 <Box sx={{ 
-                                   display: 'flex', 
-                                   alignItems: 'flex-start', 
-                                   mb: 2,
-                                   flexDirection: { xs: 'column', sm: 'row' },
-                                   textAlign: { xs: 'center', sm: 'left' },
-                                 }}>
-                                   <Avatar
-                                     sx={{
-                                       background: getGeminiSuggestionColor(suggestion.importance),
-                                       mr: { xs: 0, sm: 2 },
-                                       mb: { xs: 1, sm: 0 },
-                                       width: { xs: 40, sm: 48 },
-                                       height: { xs: 40, sm: 48 },
-                                     }}
-                                   >
-                                     🤖
-                                   </Avatar>
-                                   <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
-                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                       <Typography
-                                         variant="h6"
-                                         className="text-primary"
-                                         sx={{ 
-                                           fontWeight: 700, 
-                                           fontSize: { xs: '1rem', sm: '1.25rem' },
-                                         }}
-                                       >
-                                         {suggestion.name}
-                                       </Typography>
-                                       <Chip
-                                         label={suggestion.importance}
-                                         size="small"
-                                         sx={{
-                                           background: getGeminiSuggestionColor(suggestion.importance),
-                                           color: 'white',
-                                           fontSize: '0.6rem',
-                                           height: 20,
-                                         }}
-                                       />
-                                     </Box>
-                                     <Typography variant="body2" className="text-muted">
-                                       {suggestion.type} • {formatDistance(suggestion.distance)} from route
-                                     </Typography>
-                                   </Box>
-                                 </Box>
 
-                                 <Typography
-                                   variant="body2"
-                                   className="text-secondary"
-                                   sx={{
-                                     mb: 2,
-                                     lineHeight: 1.5,
-                                     fontSize: { xs: '0.875rem', sm: '1rem' },
-                                     textAlign: { xs: 'center', sm: 'left' },
-                                   }}
-                                 >
-                                   {suggestion.description}
-                                 </Typography>
-
-                                 <Box sx={{ 
-                                   display: 'flex', 
-                                   flexWrap: 'wrap', 
-                                   gap: 1, 
-                                   mb: 2,
-                                   justifyContent: { xs: 'center', sm: 'flex-start' },
-                                 }}>
-                                   {suggestion.tags.slice(0, 3).map((tag, index) => (
-                                     <Chip
-                                       key={index}
-                                       label={tag}
-                                       size="small"
-                                       sx={{
-                                         background: 'var(--bg-tertiary)',
-                                         color: 'var(--text-primary)',
-                                         fontSize: '0.7rem',
-                                       }}
-                                     />
-                                   ))}
-                                 </Box>
-
-                                 <Divider sx={{ my: 2, borderColor: 'var(--border-primary)' }} />
-
-                                 <Box sx={{ 
-                                   display: 'flex', 
-                                   justifyContent: 'space-between', 
-                                   alignItems: 'center',
-                                   flexDirection: { xs: 'column', sm: 'row' },
-                                   gap: { xs: 1, sm: 0 },
-                                   mt: 'auto',
-                                 }}>
-                                   <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                                     <Typography
-                                       variant="body2"
-                                       sx={{ 
-                                         color: 'var(--text-secondary)',
-                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                                       }}
-                                     >
-                                       <strong>AI Recommended</strong>
-                                     </Typography>
-                                     <Typography
-                                       variant="body2"
-                                       sx={{ 
-                                         color: 'var(--text-secondary)',
-                                         fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                                       }}
-                                     >
-                                       <strong>Distance:</strong> {formatDistance(suggestion.distance)} away
-                                     </Typography>
-                                   </Box>
-                                   <Button
-                                     variant="outlined"
-                                     size="small"
-                                     startIcon={<DirectionsIcon />}
-                                     sx={{
-                                       borderColor: 'var(--border-primary)',
-                                       color: 'var(--text-primary)',
-                                       fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                                       '&:hover': {
-                                         borderColor: getGeminiSuggestionColor(suggestion.importance),
-                                         backgroundColor: `${getGeminiSuggestionColor(suggestion.importance)}10`,
-                                       },
-                                     }}
-                                   >
-                                     View Details
-                                   </Button>
-                                 </Box>
-                               </CardContent>
-                             </Card>
-                           </motion.div>
-                         </Grid>
-                       ))}
                      </Grid>
                   </Paper>
                 </motion.div>

@@ -26,16 +26,17 @@ import {
   Route as RouteIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GeminiPlaceSuggestion, UserPreference } from '../services/GeminiService';
+import { UserPreference } from '../services/GeminiService';
+import { TravelRecommendation } from '../services/IntegratedTravelService';
 import geminiService from '../services/GeminiService';
 
 interface PlaceDetailsModalProps {
   open: boolean;
   onClose: () => void;
-  place: GeminiPlaceSuggestion | null;
+  place: TravelRecommendation | null;
   userPreferences: UserPreference[];
   routeContext: string;
-  onReroute: (place: GeminiPlaceSuggestion) => void;
+  onReroute: (place: TravelRecommendation) => void;
 }
 
 const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
@@ -62,11 +63,19 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
     
     setLoadingImportance(true);
     try {
+      const routeContextObj = {
+        startLocation: routeContext.split(' to ')[0] || '',
+        endLocation: routeContext.split(' to ')[1] || '',
+        routeDistance: 0,
+        routeDuration: 0,
+        transportationMode: 'driving'
+      };
+      
       const importanceText = await geminiService.getPlaceImportance(
         place.name,
         place.type,
         userPreferences,
-        routeContext
+        routeContextObj
       );
       setImportance(importanceText);
     } catch (error) {
@@ -82,10 +91,19 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
     
     setLoadingOptimization(true);
     try {
+      const routeContextObj = {
+        startLocation: routeContext.split(' to ')[0] || '',
+        endLocation: routeContext.split(' to ')[1] || '',
+        routeDistance: 0,
+        routeDuration: 0,
+        transportationMode: 'driving'
+      };
+      
       const optimization = await geminiService.getRouteOptimization(
         { distance: 0, duration: 0 }, // Mock route data
         place,
-        userPreferences
+        userPreferences,
+        routeContextObj
       );
       setRouteOptimization(optimization);
       
