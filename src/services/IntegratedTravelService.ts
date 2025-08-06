@@ -69,16 +69,25 @@ class IntegratedTravelService {
     preferences: TravelPreferences
   ): Promise<EnhancedRouteAnalysis> {
     try {
-      // Step 1: Get route from Google Maps
-      const startDetails = await this.getLocationDetails(startLocation);
-      const endDetails = await this.getLocationDetails(endLocation);
+      console.log('Getting comprehensive recommendations for:', startLocation, 'to', endLocation);
       
+      // Step 1: Get route from Google Maps
+      console.log('Getting location details for start location...');
+      const startDetails = await this.getLocationDetails(startLocation);
+      console.log('Start location details:', startDetails);
+      
+      console.log('Getting location details for end location...');
+      const endDetails = await this.getLocationDetails(endLocation);
+      console.log('End location details:', endDetails);
+      
+      console.log('Getting route from Google Maps...');
       const route = await googleMapsService.getRoute(
         startDetails,
         endDetails,
         [],
         transportationMode
       );
+      console.log('Route obtained:', route);
 
       // Step 2: Get POIs from Google Maps
       const placeTypes = this.getPlaceTypesFromPreferences(preferences.userPreferences);
@@ -119,20 +128,30 @@ class IntegratedTravelService {
   }
 
   private async getLocationDetails(location: string): Promise<Location> {
-    if (location.includes(',')) {
-      // Assume it's already coordinates or address
+    console.log('Getting location details for:', location);
+    try {
+      // First try to geocode the address
+      console.log('Attempting to geocode address...');
+      const geocodedLocation = await googleMapsService.geocodeAddress(location);
+      console.log('Geocoding successful:', geocodedLocation);
+      return geocodedLocation;
+    } catch (error) {
+      console.log('Geocoding failed, trying place predictions...');
+      // If geocoding fails, try to get place predictions
       try {
-        return await googleMapsService.geocodeAddress(location);
-      } catch (error) {
+        const predictions = await googleMapsService.getPlacePredictions(location);
+        console.log('Place predictions:', predictions);
+        if (predictions.length > 0) {
+          console.log('Getting place details for first prediction...');
+          const placeDetails = await googleMapsService.getPlaceDetails(predictions[0].placeId);
+          console.log('Place details obtained:', placeDetails);
+          return placeDetails;
+        } else {
+          throw new Error(`Location not found: ${location}`);
+        }
+      } catch (predictionError) {
+        console.error('Place prediction failed:', predictionError);
         throw new Error(`Invalid location: ${location}`);
-      }
-    } else {
-      // Try to get place details
-      const predictions = await googleMapsService.getPlacePredictions(location);
-      if (predictions.length > 0) {
-        return await googleMapsService.getPlaceDetails(predictions[0].placeId);
-      } else {
-        throw new Error(`Location not found: ${location}`);
       }
     }
   }

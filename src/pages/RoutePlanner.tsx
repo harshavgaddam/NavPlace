@@ -267,9 +267,9 @@ const RoutePlanner: React.FC = () => {
     }
   };
 
-  const handlePlanRoute = async () => {
-    if (!state.startLocationDetails || !state.endLocationDetails) {
-      setState(prev => ({ ...prev, error: 'Please select valid start and end locations' }));
+    const handlePlanRoute = async () => {
+    if (!state.startLocation || !state.endLocation) {
+      setState(prev => ({ ...prev, error: 'Please enter both start and end locations' }));
       return;
     }
 
@@ -282,26 +282,28 @@ const RoutePlanner: React.FC = () => {
         travelPurpose: 'general travel'
       };
 
-      const enhancedAnalysis = await integratedTravelService.getComprehensiveRecommendations(
-          state.startLocation,
-          state.endLocation,
-          state.transportationMode,
-        travelPreferences
-        );
+      console.log('Planning route from:', state.startLocation, 'to:', state.endLocation);
 
-        setState(prev => ({
-          ...prev,
+      const enhancedAnalysis = await integratedTravelService.getComprehensiveRecommendations(
+        state.startLocation,
+        state.endLocation,
+        state.transportationMode,
+        travelPreferences
+      );
+
+      setState(prev => ({
+        ...prev,
         route: enhancedAnalysis.route,
         recommendations: enhancedAnalysis.recommendations,
         enhancedAnalysis,
-          loading: false,
-        }));
+        loading: false,
+      }));
     } catch (error) {
       console.error('Route planning error:', error);
       setState(prev => ({
         ...prev,
         loading: false,
-        error: 'Failed to plan route. Please try again.',
+        error: error instanceof Error ? error.message : 'Failed to plan route. Please try again.',
       }));
     }
   };
