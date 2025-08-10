@@ -107,9 +107,29 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
   }, [onRealTimeUpdate, debounceTimer]);
 
   const handlePreferenceChange = (category: string, value: number) => {
-    const updatedPreferences = preferences.map(pref =>
-      pref.category === category ? { ...pref, interestLevel: value } : pref
-    );
+    console.log('Slider changed:', category, 'to value:', value);
+    
+    // Check if preference already exists
+    const existingPreference = preferences.find(p => p.category === category);
+    
+    let updatedPreferences: UserPreference[];
+    
+    if (existingPreference) {
+      // Update existing preference
+      updatedPreferences = preferences.map(pref =>
+        pref.category === category ? { ...pref, interestLevel: value } : pref
+      );
+    } else {
+      // Add new preference
+      const newPreference: UserPreference = {
+        category,
+        interestLevel: value,
+        description: preferenceCategories.find(cat => cat.key === category)?.description || ''
+      };
+      updatedPreferences = [...preferences, newPreference];
+    }
+    
+    console.log('Updated preferences:', updatedPreferences);
     onPreferencesChange(updatedPreferences);
     
     // Trigger real-time update with debouncing
@@ -171,7 +191,7 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
         <Box sx={{ p: { xs: 2, md: 3 }, pt: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Typography variant="body2" className="text-secondary">
-              Drag the sliders to adjust your interests. AI recommendations will update automatically.
+              <strong>🎯 Drag the sliders below</strong> to adjust your interests. AI recommendations will update automatically after you make changes.
             </Typography>
             {isUpdating && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -185,8 +205,17 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {preferenceCategories.map((category) => {
-              const currentPreference = preferences.find(p => p.category === category.key);
-              const value = currentPreference?.interestLevel || 1;
+              // Find existing preference or create default
+              let currentPreference = preferences.find(p => p.category === category.key);
+              if (!currentPreference) {
+                // Create default preference if none exists
+                currentPreference = {
+                  category: category.key,
+                  interestLevel: 1,
+                  description: category.description
+                };
+              }
+              const value = currentPreference.interestLevel;
 
               return (
                 <motion.div
@@ -242,6 +271,7 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
                       marks
                       valueLabelDisplay="auto"
                       sx={{
+                        cursor: 'pointer',
                         '& .MuiSlider-track': {
                           background: `linear-gradient(to right, #6b7280, ${getInterestColor(value)})`,
                           height: 6,
@@ -252,11 +282,14 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
                           width: 20,
                           height: 20,
                           boxShadow: `0 0 0 4px ${getInterestColor(value)}20`,
+                          cursor: 'grab',
                           '&:hover': {
                             boxShadow: `0 0 0 6px ${getInterestColor(value)}30`,
+                            cursor: 'grab',
                           },
                           '&:active': {
                             boxShadow: `0 0 0 8px ${getInterestColor(value)}40`,
+                            cursor: 'grabbing',
                           },
                         },
                         '& .MuiSlider-mark': {
@@ -268,11 +301,19 @@ const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
                           color: 'var(--text-secondary)',
                           fontSize: '0.75rem',
                         },
+                        '& .MuiSlider-rail': {
+                          background: '#e5e7eb',
+                          height: 6,
+                          borderRadius: 3,
+                        },
                       }}
                     />
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
                       <Typography variant="caption" className="text-muted">
                         Not interested
+                      </Typography>
+                      <Typography variant="caption" className="text-accent" sx={{ fontWeight: 600 }}>
+                        👆 Drag to adjust
                       </Typography>
                       <Typography variant="caption" className="text-muted">
                         Very interested
