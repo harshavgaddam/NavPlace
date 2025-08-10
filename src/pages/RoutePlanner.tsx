@@ -367,6 +367,24 @@ const RoutePlanner: React.FC = () => {
     }
   };
 
+  const getAIMarkerIcon = (type: string) => {
+    // AI recommendations get special icons with AI indicator
+    const baseIcon = getPoiIcon(type);
+    return React.cloneElement(baseIcon, {
+      sx: { 
+        ...baseIcon.props.sx,
+        filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.6))',
+        transform: 'scale(1.2)'
+      }
+    });
+  };
+
+  const getAIMarkerColor = (type: string) => {
+    // AI recommendations get enhanced colors
+    const baseColor = getPoiColor(type);
+    return baseColor;
+  };
+
   // Helper function to format duration
   const formatDuration = (minutes: number) => {
     if (minutes >= 60) {
@@ -592,28 +610,56 @@ const RoutePlanner: React.FC = () => {
       }
 
              // Add recommendation markers
-       state.recommendations.forEach((recommendation) => {
-         const marker = new window.google.maps.Marker({
-           position: { lat: recommendation.location.lat, lng: recommendation.location.lng },
-           map,
-           title: recommendation.name,
-           icon: {
-             path: window.google.maps.SymbolPath.CIRCLE,
-             scale: recommendation.source === 'gemini' ? 8 : 6,
-             fillColor: recommendation.source === 'gemini' ? 
-               getGeminiSuggestionColor(recommendation.importance) : 
-               getPoiColor(recommendation.type),
-             fillOpacity: recommendation.source === 'gemini' ? 0.9 : 0.8,
-             strokeColor: '#ffffff',
-             strokeWeight: recommendation.source === 'gemini' ? 2 : 1
-           }
-         });
+      state.recommendations.forEach((recommendation) => {
+        // Check if this is an AI recommendation
+        const isAIRecommendation = (recommendation as any).isAIRecommendation || recommendation.source === 'gemini';
+        
+        const marker = new window.google.maps.Marker({
+          position: { lat: recommendation.location.lat, lng: recommendation.location.lng },
+          map,
+          title: `${recommendation.name}${isAIRecommendation ? ' (AI Recommended)' : ''}`,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: isAIRecommendation ? 10 : 6, // AI recommendations are larger
+            fillColor: isAIRecommendation ? 
+              getAIMarkerColor(recommendation.type) : 
+              getPoiColor(recommendation.type),
+            fillOpacity: isAIRecommendation ? 0.95 : 0.8,
+            strokeColor: isAIRecommendation ? '#3b82f6' : '#ffffff', // AI recommendations have blue border
+            strokeWeight: isAIRecommendation ? 3 : 1
+          }
+        });
 
-         // Add click listener for recommendations
-         marker.addListener('click', () => {
-           handlePlaceSelect(recommendation);
-         });
-       });
+        // Add click listener for recommendations
+        marker.addListener('click', () => {
+          handlePlaceSelect(recommendation);
+        });
+
+        // Add hover effect for AI recommendations
+        if (isAIRecommendation) {
+          marker.addListener('mouseover', () => {
+            marker.setIcon({
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 12, // Slightly larger on hover
+              fillColor: getAIMarkerColor(recommendation.type),
+              fillOpacity: 1,
+              strokeColor: '#3b82f6',
+              strokeWeight: 4
+            });
+          });
+
+          marker.addListener('mouseout', () => {
+            marker.setIcon({
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: getAIMarkerColor(recommendation.type),
+              fillOpacity: 0.95,
+              strokeColor: '#3b82f6',
+              strokeWeight: 3
+            });
+          });
+        }
+      });
     }
 
     // Helper function to get Google Maps travel mode
@@ -1338,70 +1384,100 @@ const RoutePlanner: React.FC = () => {
                     
                                          <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ alignItems: 'stretch' }}>
                        {/* Travel Recommendations */}
-                       {state.recommendations.slice(0, 8).map((recommendation, index) => (
-                         <Grid item xs={12} sm={6} lg={4} key={recommendation.id} sx={{ display: 'flex' }}>
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
-                          >
-                            <Card
-                              sx={{
-                                background: 'var(--bg-glass-strong)',
-                                backdropFilter: 'blur(10px)',
-                                border: '1px solid var(--border-primary)',
-                                borderRadius: { xs: 2, md: 3 },
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                width: '100%',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                cursor: recommendation.source === 'gemini' ? 'pointer' : 'default',
-                                '&:hover': {
-                                  transform: { xs: 'none', md: 'translateY(-4px)' },
-                                  boxShadow: 'var(--shadow-strong)',
-                                  ...(recommendation.source === 'gemini' && {
-                                    borderColor: getGeminiSuggestionColor(recommendation.importance),
-                                  }),
-                                },
-                              }}
-                              onClick={() => recommendation.source === 'gemini' && handlePlaceSelect(recommendation)}
+                       {state.recommendations.slice(0, 8).map((recommendation, index) => {
+                         const isAIRecommendation = (recommendation as any).isAIRecommendation || recommendation.source === 'gemini';
+                         
+                         return (
+                           <Grid item xs={12} sm={6} lg={4} key={recommendation.id} sx={{ display: 'flex' }}>
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
                             >
-                              <CardContent sx={{ 
-                                p: { xs: 2, md: 3 },
-                                flex: 1,
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}>
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'flex-start', 
-                                  mb: 2,
-                                  flexDirection: { xs: 'column', sm: 'row' },
-                                  textAlign: { xs: 'center', sm: 'left' },
-                                }}>
-                                  <Avatar
+                              <Card
+                                sx={{
+                                  background: isAIRecommendation ? 'var(--bg-glass-strong)' : 'var(--bg-glass)',
+                                  backdropFilter: 'blur(10px)',
+                                  border: isAIRecommendation ? 
+                                    `2px solid ${getAIMarkerColor(recommendation.type)}` : 
+                                    '1px solid var(--border-primary)',
+                                  borderRadius: { xs: 2, md: 3 },
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  width: '100%',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  cursor: 'pointer',
+                                  position: 'relative',
+                                  '&:hover': {
+                                    transform: { xs: 'none', md: 'translateY(-4px)' },
+                                    boxShadow: isAIRecommendation ? 
+                                      `0 8px 32px ${getAIMarkerColor(recommendation.type)}40` : 
+                                      'var(--shadow-strong)',
+                                  },
+                                }}
+                                onClick={() => handlePlaceSelect(recommendation)}
+                              >
+                                {/* AI Recommendation Badge */}
+                                {isAIRecommendation && (
+                                  <Box
                                     sx={{
-                                      background: recommendation.source === 'gemini' ? 
-                                        getGeminiSuggestionColor(recommendation.importance) : 
-                                        getPoiColor(recommendation.type),
-                                      mr: { xs: 0, sm: 2 },
-                                      mb: { xs: 1, sm: 0 },
-                                      width: { xs: 40, sm: 48 },
-                                      height: { xs: 40, sm: 48 },
+                                      position: 'absolute',
+                                      top: -8,
+                                      right: -8,
+                                      background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                                      color: 'white',
+                                      px: 1.5,
+                                      py: 0.5,
+                                      borderRadius: 2,
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      zIndex: 1,
+                                      boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
                                     }}
                                   >
-                                    {recommendation.source === 'gemini' ? '🤖' : getPoiIcon(recommendation.type)}
-                                  </Avatar>
-                                  <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                    <Typography
-                                      variant="h6"
-                                      className="text-primary"
-                                      sx={{ 
-                                        fontWeight: 700, 
-                                        fontSize: { xs: '1rem', sm: '1.25rem' },
+                                    🤖 AI
+                                  </Box>
+                                )}
+                                
+                                <CardContent sx={{ 
+                                  p: { xs: 2, md: 3 },
+                                  flex: 1,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                }}>
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'flex-start', 
+                                    mb: 2,
+                                    flexDirection: { xs: 'column', sm: 'row' },
+                                    textAlign: { xs: 'center', sm: 'left' },
+                                  }}>
+                                    <Avatar
+                                      sx={{
+                                        background: isAIRecommendation ? 
+                                          getAIMarkerColor(recommendation.type) : 
+                                          getPoiColor(recommendation.type),
+                                        mr: { xs: 0, sm: 2 },
+                                        mb: { xs: 1, sm: 0 },
+                                        width: { xs: 40, sm: 48 },
+                                        height: { xs: 40, sm: 48 },
+                                        boxShadow: isAIRecommendation ? 
+                                          `0 4px 12px ${getAIMarkerColor(recommendation.type)}40` : 
+                                          'none',
                                       }}
                                     >
+                                      {isAIRecommendation ? '🤖' : getPoiIcon(recommendation.type)}
+                                    </Avatar>
+                                    <Box sx={{ flexGrow: 1, width: { xs: '100%', sm: 'auto' } }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                        <Typography
+                                          variant="h6"
+                                          className="text-primary"
+                                          sx={{ 
+                                            fontWeight: 700, 
+                                            fontSize: { xs: '1rem', sm: '1.25rem' },
+                                          }}
+                                        >
                                         {recommendation.name}
                                     </Typography>
                                       {recommendation.source === 'gemini' && (
@@ -1528,7 +1604,8 @@ const RoutePlanner: React.FC = () => {
                             </Card>
                           </motion.div>
                                                  </Grid>
-                       ))}
+                       );
+                       })}
 
 
                      </Grid>

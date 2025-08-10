@@ -31,6 +31,7 @@ export interface PlaceOfInterest {
   openingHours?: string;
   tags?: string[];
   placeId: string;
+  isAIRecommendation?: boolean;
 }
 
 export interface AutocompleteResult {
@@ -430,23 +431,204 @@ class GoogleMapsService {
   // Geocode an address
   async geocodeAddress(address: string): Promise<Location> {
     await this.ensureInitialized();
-
+    
     return new Promise((resolve, reject) => {
       const geocoder = new this.google.maps.Geocoder();
       
-      geocoder.geocode({ address }, (results: any[], status: any) => {
-        if (status === this.google.maps.GeocoderStatus.OK && results && results[0]) {
+      geocoder.geocode({ address }, (results: any, status: any) => {
+        if (status === 'OK' && results[0]) {
           const location = results[0].geometry.location;
           resolve({
             lat: location.lat(),
             lng: location.lng(),
-            address: results[0].formatted_address,
+            address: results[0].formatted_address
           });
         } else {
           reject(new Error(`Geocoding failed: ${status}`));
         }
       });
     });
+  }
+
+  // AI-Powered Place Search Methods
+  async searchAIPoweredPlaces(
+    route: Route,
+    userPreferences: any[],
+    maxDistanceMiles: number = 50
+  ): Promise<PlaceOfInterest[]> {
+    console.log('🤖 Starting AI-powered place search...');
+    console.log('User preferences:', userPreferences);
+    
+    // Convert user preferences to search intents
+    const searchIntents = this.convertPreferencesToSearchIntents(userPreferences);
+    console.log('Search intents:', searchIntents);
+    
+    // Get ground-truth candidates from Google Places API
+    const allCandidates = await this.getGroundTruthCandidates(route, searchIntents);
+    console.log('Ground-truth candidates found:', allCandidates.length);
+    
+    // Filter candidates within 50 miles of route
+    const filteredCandidates = this.filterCandidatesByDistance(route, allCandidates, maxDistanceMiles);
+    console.log('Candidates within 50 miles:', filteredCandidates.length);
+    
+    // Rank candidates as "Top recommendations"
+    const rankedCandidates = this.rankCandidatesAsTopRecommendations(filteredCandidates, userPreferences, route);
+    console.log('Top recommendations:', rankedCandidates.length);
+    
+    return rankedCandidates;
+  }
+
+  private convertPreferencesToSearchIntents(userPreferences: any[]): string[] {
+    const searchIntents: string[] = [];
+    
+    // Map user preference categories to Google Places types
+    const preferenceToPlacesType: { [key: string]: string[] } = {
+      restaurant: ['restaurant', 'food', 'cafe', 'bakery'],
+      museum: ['museum', 'art_gallery', 'library'],
+      park: ['park', 'natural_feature', 'campground'],
+      shopping: ['shopping_mall', 'store', 'department_store'],
+      activity: ['amusement_park', 'aquarium', 'bowling_alley', 'movie_theater'],
+      lodging: ['lodging', 'hotel'],
+      photography: ['tourist_attraction', 'point_of_interest', 'establishment']
+    };
+    
+    userPreferences.forEach(pref => {
+      if (pref.interestLevel >= 3) { // Only include preferences with interest level 3+
+        const placesTypes = preferenceToPlacesType[pref.category] || [];
+        searchIntents.push(...placesTypes);
+      }
+    });
+    
+    // Add fallback types if no preferences are set
+    if (searchIntents.length === 0) {
+      searchIntents.push('restaurant', 'tourist_attraction', 'park');
+    }
+    
+    return Array.from(new Set(searchIntents)); // Remove duplicates
+  }
+
+  private async getGroundTruthCandidates(route: Route, searchIntents: string[]): Promise<PlaceOfInterest[]> {
+    const allCandidates: PlaceOfInterest[] = [];
+    
+    // Sample points along the route for searching
+    const routePoints = this.sampleRoutePoints(this.decodePolyline(route.polyline), 20);
+    
+    for (const point of routePoints) {
+      for (const intent of searchIntents) {
+        try {
+          const places = await this.searchNearbyPlaces(point, [intent], 50000); // 50km radius
+          allCandidates.push(...places);
+        } catch (error) {
+          console.warn(`Failed to search for ${intent} near ${point.lat},${point.lng}:`, error);
+        }
+      }
+    }
+    
+    // Remove duplicates based on placeId
+    return this.removeDuplicatePlaces(allCandidates);
+  }
+
+  private filterCandidatesByDistance(route: Route, candidates: PlaceOfInterest[], maxDistanceMiles: number): PlaceOfInterest[] {
+    const maxDistanceMeters = maxDistanceMiles * 1609.34; // Convert miles to meters
+    const routePoints = this.decodePolyline(route.polyline);
+    
+    return candidates.filter(candidate => {
+      // Check if candidate is within maxDistanceMeters of any route point
+      return routePoints.some(routePoint => {
+        const distance = this.calculateDistance(
+          routePoint.lat, routePoint.lng,
+          candidate.location.lat, candidate.location.lng
+        );
+        return distance <= maxDistanceMeters;
+      });
+    });
+  }
+
+  private rankCandidatesAsTopRecommendations(candidates: PlaceOfInterest[], userPreferences: any[], route: Route): PlaceOfInterest[] {
+    // Score each candidate based on user preferences and other factors
+    const scoredCandidates = candidates.map(candidate => {
+      let score = 0;
+      
+      // Base score from rating (0-5 points)
+      if (candidate.rating) {
+        score += candidate.rating;
+      }
+      
+      // Preference matching score (0-5 points per matching preference)
+      userPreferences.forEach(pref => {
+        if (this.matchesPreference(candidate, pref)) {
+          score += pref.interestLevel;
+        }
+      });
+      
+      // Distance score (closer is better, 0-3 points)
+      const routePoints = this.decodePolyline(route.polyline);
+      const minDistance = Math.min(...routePoints.map(point => 
+        this.calculateDistance(point.lat, point.lng, candidate.location.lat, candidate.location.lng)
+      ));
+      score += Math.max(0, 3 - (minDistance / 1000)); // 3 points for very close, decreasing with distance
+      
+      // Popularity score based on photos and reviews (0-2 points)
+      if (candidate.photos && candidate.photos.length > 0) {
+        score += Math.min(2, candidate.photos.length / 5);
+      }
+      
+      return { ...candidate, score };
+    });
+    
+    // Sort by score and return top recommendations
+    return scoredCandidates
+      .sort((a, b) => (b as any).score - (a as any).score)
+      .slice(0, 20) // Return top 20 recommendations
+      .map(({ score, ...candidate }) => candidate); // Remove score from final result
+  }
+
+  private matchesPreference(candidate: PlaceOfInterest, preference: any): boolean {
+    const preferenceToTypes: { [key: string]: string[] } = {
+      restaurant: ['restaurant', 'food', 'cafe', 'bakery'],
+      museum: ['museum', 'art_gallery', 'library'],
+      park: ['park', 'natural_feature', 'campground'],
+      shopping: ['shopping_mall', 'store', 'department_store'],
+      activity: ['amusement_park', 'aquarium', 'bowling_alley', 'movie_theater'],
+      lodging: ['lodging', 'hotel'],
+      photography: ['tourist_attraction', 'point_of_interest', 'establishment']
+    };
+    
+    const matchingTypes = preferenceToTypes[preference.category] || [];
+    return matchingTypes.includes(candidate.type);
+  }
+
+  // Enhanced search method that combines AI preferences with traditional search
+  async searchPlacesWithAIPreferences(
+    route: Route,
+    userPreferences: any[],
+    traditionalTypes: string[] = []
+  ): Promise<PlaceOfInterest[]> {
+    console.log('🔍 Searching places with AI preferences...');
+    
+    // Get AI-powered recommendations
+    const aiRecommendations = await this.searchAIPoweredPlaces(route, userPreferences);
+    
+    // Get traditional search results
+    const traditionalResults = await this.searchPlacesAlongRoute(route, traditionalTypes, 5);
+    
+    // Combine and deduplicate results
+    const allResults = [...aiRecommendations, ...traditionalResults];
+    const uniqueResults = this.removeDuplicatePlaces(allResults);
+    
+    // Mark AI recommendations with special flag
+    const markedResults = uniqueResults.map(place => ({
+      ...place,
+      isAIRecommendation: aiRecommendations.some(ai => ai.placeId === place.placeId)
+    }));
+    
+    console.log('Combined results:', {
+      aiRecommendations: aiRecommendations.length,
+      traditionalResults: traditionalResults.length,
+      uniqueResults: markedResults.length
+    });
+    
+    return markedResults;
   }
 }
 

@@ -29,6 +29,7 @@ export interface TravelRecommendation {
   tags: string[];
   source: 'google' | 'gemini';
   placeId?: string;
+  isAIRecommendation?: boolean;
 }
 
 export interface EnhancedRouteAnalysis {
@@ -101,12 +102,18 @@ class IntegratedTravelService {
       );
       console.log('Route obtained:', route);
 
-      // Step 2: Get POIs from Google Maps
-      console.log('Getting POIs along route...');
+      // Step 2: Get POIs from Google Maps with AI preferences
+      console.log('Getting AI-powered POIs along route...');
       const placeTypes = this.getPlaceTypesFromPreferences(preferences.userPreferences);
       console.log('Place types to search:', placeTypes);
-      const pois = await googleMapsService.searchPlacesAlongRoute(route, placeTypes, 5);
-      console.log('POIs found:', pois.length);
+      
+      // Use new AI-powered search that converts preferences to search intents
+      const pois = await googleMapsService.searchPlacesWithAIPreferences(
+        route,
+        preferences.userPreferences,
+        placeTypes
+      );
+      console.log('AI-powered POIs found:', pois.length);
 
       let geminiAnalysis: GeminiAnalysis;
       let recommendations: TravelRecommendation[];
@@ -224,36 +231,40 @@ class IntegratedTravelService {
     geminiSuggestions: GeminiPlaceSuggestion[]
   ): TravelRecommendation[] {
     const recommendations: TravelRecommendation[] = [];
-
-    // Add Google Maps POIs
+    
+    // Add POIs from Google Maps (mark as AI recommendations if they have the flag)
     pois.forEach(poi => {
       recommendations.push({
         id: poi.id,
         name: poi.name,
         type: poi.type,
-        description: poi.description || `${poi.type} - ${poi.distance.toFixed(1)} km away`,
+        description: poi.description || `A ${poi.type} located ${poi.distance}km away`,
         location: poi.location,
         distance: poi.distance,
         rating: poi.rating,
         importance: this.calculateImportance(poi.rating || 0, poi.distance),
-        whyRecommended: `Found along your route - ${poi.type}`,
+        whyRecommended: `Popular ${poi.type} with ${poi.rating ? `${poi.rating}/5 rating` : 'good reviews'}`,
+        estimatedVisitTime: this.estimateVisitTime(poi.type),
+        bestTimeToVisit: this.getBestTimeToVisit(poi.type),
+        costLevel: this.estimateCostLevel(poi.type),
         tags: poi.tags || [poi.type],
         source: 'google',
-        placeId: poi.placeId
+        placeId: poi.placeId,
+        isAIRecommendation: (poi as any).isAIRecommendation || false
       });
     });
-
-    // Add Gemini AI suggestions
+    
+    // Add Gemini suggestions (always marked as AI recommendations)
     geminiSuggestions.forEach(suggestion => {
       recommendations.push({
-        id: suggestion.id,
+        id: `gemini-${suggestion.name.toLowerCase().replace(/\s+/g, '-')}`,
         name: suggestion.name,
         type: suggestion.type,
         description: suggestion.description,
         location: suggestion.location,
         distance: suggestion.distance,
         rating: suggestion.rating,
-        importance: suggestion.importance as 'Must-visit' | 'Highly recommended' | 'Worth checking out',
+        importance: this.mapImportanceString(suggestion.importance),
         whyRecommended: suggestion.whyRecommended,
         estimatedVisitTime: suggestion.estimatedVisitTime,
         bestTimeToVisit: suggestion.bestTimeToVisit,
@@ -261,22 +272,12 @@ class IntegratedTravelService {
         accessibility: suggestion.accessibility,
         seasonalRecommendation: suggestion.seasonalRecommendation,
         tags: suggestion.tags,
-        source: 'gemini'
+        source: 'gemini',
+        isAIRecommendation: true
       });
     });
-
-    // Sort by importance and distance
-    return recommendations.sort((a, b) => {
-      const importanceOrder = { 'Must-visit': 3, 'Highly recommended': 2, 'Worth checking out': 1 };
-      const aImportance = importanceOrder[a.importance] || 0;
-      const bImportance = importanceOrder[b.importance] || 0;
-      
-      if (aImportance !== bImportance) {
-        return bImportance - aImportance;
-      }
-      
-      return a.distance - b.distance;
-    });
+    
+    return recommendations;
   }
 
   private calculateImportance(rating: number, distance: number): 'Must-visit' | 'Highly recommended' | 'Worth checking out' {
@@ -331,10 +332,11 @@ class IntegratedTravelService {
         description: suggestion.description,
         location: suggestion.location,
         distance: suggestion.distance,
-        importance: suggestion.importance as 'Must-visit' | 'Highly recommended' | 'Worth checking out',
+        importance: this.mapImportanceString(suggestion.importance),
         whyRecommended: suggestion.whyRecommended,
         tags: suggestion.tags,
-        source: 'gemini' as const
+        source: 'gemini' as const,
+        isAIRecommendation: true
       }));
 
       return {
@@ -370,30 +372,24 @@ class IntegratedTravelService {
 
   // Fallback methods for when Gemini API is not available
   private createFallbackRecommendations(pois: PlaceOfInterest[], preferences: TravelPreferences): TravelRecommendation[] {
-    return pois.map(poi => {
-      const importance = this.calculateImportance(poi.rating || 0, poi.distance);
-      const whyRecommended = this.generateFallbackWhyRecommended(poi, preferences);
-      
-      return {
-        id: poi.id,
-        name: poi.name,
-        type: poi.type,
-        description: this.generateFallbackDescription(poi),
-        location: poi.location,
-        distance: poi.distance,
-        rating: poi.rating,
-        importance,
-        whyRecommended,
-        estimatedVisitTime: this.estimateVisitTime(poi.type),
-        bestTimeToVisit: this.getBestTimeToVisit(poi.type),
-        costLevel: this.estimateCostLevel(poi.type),
-        accessibility: 'Check with venue for accessibility details',
-        seasonalRecommendation: 'Year-round destination',
-        tags: [poi.type, 'google-maps'],
-        source: 'google',
-        placeId: poi.placeId
-      };
-    });
+    return pois.map(poi => ({
+      id: poi.id,
+      name: poi.name,
+      type: poi.type,
+      description: poi.description || `A ${poi.type} located ${poi.distance}km away`,
+      location: poi.location,
+      distance: poi.distance,
+      rating: poi.rating,
+      importance: this.calculateImportance(poi.rating || 0, poi.distance),
+      whyRecommended: this.generateFallbackWhyRecommended(poi, preferences),
+      estimatedVisitTime: this.estimateVisitTime(poi.type),
+      bestTimeToVisit: this.getBestTimeToVisit(poi.type),
+      costLevel: this.estimateCostLevel(poi.type),
+      tags: poi.tags || [poi.type],
+      source: 'google' as const,
+      placeId: poi.placeId,
+      isAIRecommendation: (poi as any).isAIRecommendation || false
+    }));
   }
 
   private createFallbackGeminiAnalysis(route: Route, preferences: TravelPreferences): GeminiAnalysis {
@@ -527,6 +523,12 @@ class IntegratedTravelService {
     };
 
     return costLevels[type] || '$';
+  }
+
+  private mapImportanceString(importance: string): 'Must-visit' | 'Highly recommended' | 'Worth checking out' {
+    if (importance === 'Must-visit') return 'Must-visit';
+    if (importance === 'Highly recommended') return 'Highly recommended';
+    return 'Worth checking out';
   }
 }
 
