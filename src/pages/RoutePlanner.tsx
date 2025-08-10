@@ -145,6 +145,7 @@ const RoutePlanner: React.FC = () => {
   const [endLoading, setEndLoading] = useState(false);
   const [startError, setStartError] = useState('');
   const [endError, setEndError] = useState('');
+  const [isUpdatingAI, setIsUpdatingAI] = useState(false);
 
   const startInputRef = useRef<HTMLInputElement>(null);
   const endInputRef = useRef<HTMLInputElement>(null);
@@ -386,6 +387,49 @@ const RoutePlanner: React.FC = () => {
   // Handle preferences change
   const handlePreferencesChange = (newPreferences: UserPreference[]) => {
     setState(prev => ({ ...prev, userPreferences: newPreferences }));
+  };
+
+  const handleRealTimePreferenceUpdate = async (newPreferences: UserPreference[]) => {
+    // Only update if we have a route and preferences have changed
+    if (!state.route || newPreferences.length === 0) return;
+
+    setIsUpdatingAI(true);
+    
+    try {
+      console.log('Real-time AI update with preferences:', newPreferences);
+      
+      const travelPreferences: TravelPreferences = {
+        userPreferences: newPreferences,
+        travelPurpose: 'general travel'
+      };
+
+      const enhancedAnalysis = await integratedTravelService.getComprehensiveRecommendations(
+        state.startLocation,
+        state.endLocation,
+        state.transportationMode,
+        travelPreferences
+      );
+
+      setState(prev => ({
+        ...prev,
+        recommendations: enhancedAnalysis.recommendations,
+        enhancedAnalysis,
+        userPreferences: newPreferences,
+      }));
+
+      console.log('AI recommendations updated with', enhancedAnalysis.recommendations.length, 'new suggestions');
+      
+      // Show a brief success message
+      const aiSuggestions = enhancedAnalysis.recommendations.filter(r => r.source === 'gemini').length;
+      if (aiSuggestions > 0) {
+        console.log(`✨ AI updated with ${aiSuggestions} personalized suggestions!`);
+      }
+    } catch (error) {
+      console.error('Real-time AI update failed:', error);
+      // Don't show error to user for real-time updates, just log it
+    } finally {
+      setIsUpdatingAI(false);
+    }
   };
 
   // Handle place selection from map
@@ -749,8 +793,10 @@ const RoutePlanner: React.FC = () => {
                    <PreferencesPanel
                      preferences={state.userPreferences}
                      onPreferencesChange={handlePreferencesChange}
+                     onRealTimeUpdate={handleRealTimePreferenceUpdate}
                      isOpen={state.showPreferences}
                      onToggle={() => setState(prev => ({ ...prev, showPreferences: !prev.showPreferences }))}
+                     isUpdating={isUpdatingAI}
                    />
 
                    {/* Start Location */}
@@ -1243,26 +1289,28 @@ const RoutePlanner: React.FC = () => {
                       borderRadius: { xs: 2, md: 4 },
                     }}
                   >
-                                         <Typography
-                       variant="h4"
-                       gutterBottom
-                       className="text-primary"
-                       sx={{
-                         fontWeight: 700,
-                         mb: { xs: 2, md: 3 },
-                         display: 'flex',
-                         alignItems: 'center',
-                         fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-                         flexDirection: { xs: 'column', sm: 'row' },
-                         textAlign: { xs: 'center', sm: 'left' },
-                       }}
-                     >
+                                         <Typography variant="h4" className="text-primary" sx={{ 
+                       fontWeight: 800, 
+                       mb: 3,
+                       display: 'flex',
+                       alignItems: 'center',
+                       gap: 2,
+                       flexWrap: 'wrap'
+                     }}>
                        <ExploreIcon sx={{ 
                          mr: { xs: 0, sm: 2 }, 
                          mb: { xs: 1, sm: 0 },
                          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
                        }} className="icon-accent" />
                        AI-Powered Recommendations ({state.recommendations.length})
+                       {isUpdatingAI && (
+                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                           <CircularProgress size={20} />
+                           <Typography variant="caption" className="text-accent" sx={{ fontWeight: 600 }}>
+                             Updating...
+                           </Typography>
+                         </Box>
+                       )}
                      </Typography>
 
                      {state.enhancedAnalysis && (
