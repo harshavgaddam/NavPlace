@@ -83,10 +83,6 @@ class IntegratedTravelService {
         throw new Error('Google Maps API key is missing. Please set REACT_APP_GOOGLE_MAPS_API_KEY in your .env file');
       }
       
-      if (!geminiApiKey) {
-        throw new Error('Gemini API key is missing. Please set REACT_APP_GEMINI_API_KEY in your .env file');
-      }
-      
       // Step 1: Get route from Google Maps
       console.log('Getting location details for start location...');
       const startDetails = await this.getLocationDetails(startLocation);
@@ -112,27 +108,45 @@ class IntegratedTravelService {
       const pois = await googleMapsService.searchPlacesAlongRoute(route, placeTypes, 5);
       console.log('POIs found:', pois.length);
 
-      // Step 3: Get AI recommendations from Gemini
-      console.log('Getting AI recommendations from Gemini...');
-      const routeContext: RouteContext = {
-        startLocation,
-        endLocation,
-        routeDistance: route.distance,
-        routeDuration: route.duration,
-        transportationMode,
-        travelPurpose: preferences.travelPurpose
-      };
+      let geminiAnalysis: GeminiAnalysis;
+      let recommendations: TravelRecommendation[];
 
-      const geminiAnalysis = await geminiService.getPersonalizedRecommendations(
-        routeContext,
-        preferences.userPreferences,
-        pois
-      );
-      console.log('Gemini analysis completed');
+      // Step 3: Get AI recommendations from Gemini (if available)
+      if (geminiApiKey) {
+        console.log('Getting AI recommendations from Gemini...');
+        const routeContext: RouteContext = {
+          startLocation,
+          endLocation,
+          routeDistance: route.distance,
+          routeDuration: route.duration,
+          transportationMode,
+          travelPurpose: preferences.travelPurpose
+        };
 
-      // Step 4: Combine and enhance recommendations
-      console.log('Combining recommendations...');
-      const recommendations = this.combineRecommendations(pois, geminiAnalysis.suggestions);
+        try {
+          geminiAnalysis = await geminiService.getPersonalizedRecommendations(
+            routeContext,
+            preferences.userPreferences,
+            pois
+          );
+          console.log('Gemini analysis completed');
+          
+          // Step 4: Combine and enhance recommendations
+          console.log('Combining recommendations...');
+          recommendations = this.combineRecommendations(pois, geminiAnalysis.suggestions);
+        } catch (geminiError) {
+          console.warn('Gemini API failed, using fallback recommendations:', geminiError);
+          // Fallback: use only Google Maps POIs with enhanced descriptions
+          recommendations = this.createFallbackRecommendations(pois, preferences);
+          geminiAnalysis = this.createFallbackGeminiAnalysis(route, preferences);
+        }
+      } else {
+        console.log('Gemini API key not available, using fallback recommendations');
+        // Fallback: use only Google Maps POIs with enhanced descriptions
+        recommendations = this.createFallbackRecommendations(pois, preferences);
+        geminiAnalysis = this.createFallbackGeminiAnalysis(route, preferences);
+      }
+
       console.log('Total recommendations:', recommendations.length);
 
       return {
@@ -352,6 +366,167 @@ class IntegratedTravelService {
       console.error('Error getting autocomplete suggestions:', error);
       return [];
     }
+  }
+
+  // Fallback methods for when Gemini API is not available
+  private createFallbackRecommendations(pois: PlaceOfInterest[], preferences: TravelPreferences): TravelRecommendation[] {
+    return pois.map(poi => {
+      const importance = this.calculateImportance(poi.rating || 0, poi.distance);
+      const whyRecommended = this.generateFallbackWhyRecommended(poi, preferences);
+      
+      return {
+        id: poi.id,
+        name: poi.name,
+        type: poi.type,
+        description: this.generateFallbackDescription(poi),
+        location: poi.location,
+        distance: poi.distance,
+        rating: poi.rating,
+        importance,
+        whyRecommended,
+        estimatedVisitTime: this.estimateVisitTime(poi.type),
+        bestTimeToVisit: this.getBestTimeToVisit(poi.type),
+        costLevel: this.estimateCostLevel(poi.type),
+        accessibility: 'Check with venue for accessibility details',
+        seasonalRecommendation: 'Year-round destination',
+        tags: [poi.type, 'google-maps'],
+        source: 'google',
+        placeId: poi.placeId
+      };
+    });
+  }
+
+  private createFallbackGeminiAnalysis(route: Route, preferences: TravelPreferences): GeminiAnalysis {
+    const totalTime = route.duration;
+    const estimatedStops = Math.min(3, Math.floor(totalTime / 60)); // Max 3 stops, one per hour
+    
+    return {
+      suggestions: [],
+      routeInsights: `This ${route.distance.toFixed(1)}-mile journey takes approximately ${Math.round(route.duration / 60)} minutes. Consider making stops along the way to explore interesting places.`,
+      personalizedTips: [
+        'Plan your stops in advance to maximize your travel experience',
+        'Check opening hours of places you want to visit',
+        'Consider traffic conditions when planning your departure time',
+        'Bring water and snacks for longer journeys',
+        'Have a backup plan in case some places are closed'
+      ],
+      routeOptimization: {
+        suggestedStops: ['Rest stop', 'Food break', 'Scenic viewpoint'],
+        timeAllocation: {
+          'Rest stop': 15,
+          'Food break': 30,
+          'Scenic viewpoint': 20
+        },
+        costEstimate: {
+          total: 50,
+          breakdown: {
+            food: 30,
+            activities: 15,
+            transportation: 5
+          }
+        }
+      },
+      weatherConsiderations: [
+        'Check weather forecast before departure',
+        'Pack appropriate clothing for the journey',
+        'Consider indoor alternatives if weather is poor'
+      ],
+      localInsights: [
+        'Research local customs and etiquette',
+        'Learn about local cuisine and specialties',
+        'Check for any local events or festivals'
+      ]
+    };
+  }
+
+  private generateFallbackWhyRecommended(poi: PlaceOfInterest, preferences: TravelPreferences): string {
+    const userPrefs = preferences.userPreferences || [];
+    const matchingPref = userPrefs.find(pref => 
+      pref.category.toLowerCase().includes(poi.type.toLowerCase()) ||
+      poi.type.toLowerCase().includes(pref.category.toLowerCase())
+    );
+
+    if (matchingPref) {
+      return `Matches your ${matchingPref.category} interest (${matchingPref.interestLevel}/5) and is conveniently located along your route.`;
+    }
+
+    return `Found along your route and offers a great opportunity to explore the area. ${poi.rating ? `Rated ${poi.rating}/5 by visitors.` : ''}`;
+  }
+
+  private generateFallbackDescription(poi: PlaceOfInterest): string {
+    const typeDescriptions: Record<string, string> = {
+      restaurant: 'A dining establishment offering various cuisines and dining experiences',
+      cafe: 'A casual dining spot perfect for coffee, light meals, and relaxation',
+      museum: 'An educational and cultural institution showcasing exhibits and artifacts',
+      park: 'A green space offering recreation, relaxation, and outdoor activities',
+      shopping_mall: 'A retail complex with multiple stores and shopping opportunities',
+      tourist_attraction: 'A popular destination known for its unique features and experiences',
+      lodging: 'Accommodation options for travelers and visitors',
+      gas_station: 'Fuel and convenience services for travelers',
+      bank: 'Financial services and ATM access',
+      hospital: 'Medical services and emergency care',
+      pharmacy: 'Medication and health supplies',
+      grocery_store: 'Food and household supplies',
+      convenience_store: 'Quick access to essentials and snacks'
+    };
+
+    return typeDescriptions[poi.type] || `${poi.type} - A place of interest along your route`;
+  }
+
+  private estimateVisitTime(type: string): number {
+    const visitTimes: Record<string, number> = {
+      restaurant: 60,
+      cafe: 30,
+      museum: 90,
+      park: 45,
+      shopping_mall: 120,
+      tourist_attraction: 60,
+      lodging: 0, // Not a visit destination
+      gas_station: 10,
+      bank: 15,
+      hospital: 0, // Not a visit destination
+      pharmacy: 15,
+      grocery_store: 30,
+      convenience_store: 10
+    };
+
+    return visitTimes[type] || 30;
+  }
+
+  private getBestTimeToVisit(type: string): string {
+    const bestTimes: Record<string, string> = {
+      restaurant: 'lunch or dinner hours',
+      cafe: 'morning or afternoon',
+      museum: 'morning (less crowded)',
+      park: 'daylight hours',
+      shopping_mall: 'afternoon or evening',
+      tourist_attraction: 'morning (less crowded)',
+      gas_station: 'anytime',
+      bank: 'business hours',
+      pharmacy: 'business hours',
+      grocery_store: 'morning or evening',
+      convenience_store: 'anytime'
+    };
+
+    return bestTimes[type] || 'anytime';
+  }
+
+  private estimateCostLevel(type: string): string {
+    const costLevels: Record<string, string> = {
+      restaurant: '$$',
+      cafe: '$',
+      museum: '$$',
+      park: 'Free',
+      shopping_mall: '$$$',
+      tourist_attraction: '$$',
+      gas_station: '$',
+      bank: 'Free',
+      pharmacy: '$',
+      grocery_store: '$',
+      convenience_store: '$'
+    };
+
+    return costLevels[type] || '$';
   }
 }
 

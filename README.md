@@ -4,15 +4,17 @@ A modern web application that transforms every car journey into an adventure wit
 
 ## ✨ Features
 
-### 🎯 MVP Features (Current)
+### 🎯 Current Features
 - **Smart Route Planning** - Google Maps integration with real-time directions
 - **Multiple Transportation Modes** - Support for car, transit, walking, and bicycling routes
 - **Autocomplete Search** - Intelligent location search with Google Places API
 - **POI Discovery** - Find restaurants, museums, parks, and attractions along your route
 - **Interest-Based Filtering** - Personalized recommendations based on user preferences
+- **AI-Powered Recommendations** - Gemini AI integration for intelligent place suggestions (optional)
 - **Interactive Map** - Visual route display with POI markers and mode-specific colors
 - **Modern UI/UX** - Beautiful, responsive design with light/dark theme support
 - **Real-time Data** - Live place information, ratings, and opening hours
+- **Graceful Fallbacks** - Enhanced Google Maps recommendations when AI is unavailable
 
 ### 🚀 Planned Features
 - **LLM Integration** - AI-powered POI classification and recommendations
@@ -35,6 +37,7 @@ A modern web application that transforms every car journey into an adventure wit
 - **Google Maps JavaScript API** - Directions, Places, Geocoding
 - **Google Places API** - POI search and details
 - **Google Directions API** - Route planning
+- **Google Gemini AI API** - AI-powered recommendations (optional)
 
 ### Development
 - **TypeScript** for type safety
@@ -58,9 +61,9 @@ cd NavPlace
 npm install
 ```
 
-### 3. Configure Google Maps API
+### 3. Configure API Keys
 
-#### Get Your API Key
+#### Required: Google Maps API Key
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
 3. Enable the following APIs:
@@ -71,11 +74,23 @@ npm install
 4. Create credentials (API Key)
 5. Restrict the API key to your domain for security
 
+#### Optional: Gemini API Key (for AI recommendations)
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the generated API key
+
 #### Set Environment Variables
-Create a `.env` file in the root directory:
+Create a `.env.local` file in the root directory:
 ```env
+# Required for basic functionality
 REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# Optional for AI-powered recommendations
+REACT_APP_GEMINI_API_KEY=your_gemini_api_key_here
 ```
+
+**Note**: The app works with just the Google Maps API key. The Gemini API key enables AI-powered personalized recommendations.
 
 ### 4. Start Development Server
 ```bash

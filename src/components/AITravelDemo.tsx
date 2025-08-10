@@ -57,9 +57,17 @@ const AITravelDemo: React.FC = () => {
       );
       
       setRecommendations(analysis.recommendations);
-    } catch (err) {
-      setError('Failed to get AI recommendations. Please check your API keys.');
+    } catch (err: any) {
       console.error('Demo error:', err);
+      
+      // Provide more specific error messages
+      if (err.message?.includes('Google Maps API key')) {
+        setError('Google Maps API key is missing. Please set REACT_APP_GOOGLE_MAPS_API_KEY in your environment variables.');
+      } else if (err.message?.includes('Failed to get travel recommendations')) {
+        setError('Unable to get travel recommendations. The app will work with basic Google Maps functionality, but AI-powered recommendations require a Gemini API key.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -90,7 +98,8 @@ const AITravelDemo: React.FC = () => {
       </Typography>
       
       <Typography variant="body1" className="text-secondary" sx={{ mb: 3 }}>
-        Experience the power of AI-driven travel recommendations that combine Google Maps data with Gemini AI analysis.
+        Experience the power of AI-driven travel recommendations that combine Google Maps data with Gemini AI analysis. 
+        {!process.env.REACT_APP_GEMINI_API_KEY && ' (Note: AI recommendations require a Gemini API key - currently using enhanced Google Maps recommendations)'}
       </Typography>
 
       <Paper sx={{ p: 3, mb: 3, background: 'var(--bg-glass)', backdropFilter: 'blur(20px)' }}>
