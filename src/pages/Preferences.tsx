@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -44,7 +44,7 @@ const Preferences: React.FC = () => {
       icon: <HistoryIcon />,
       description: 'Museums, monuments, and historical landmarks',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'art',
@@ -52,7 +52,7 @@ const Preferences: React.FC = () => {
       icon: <MuseumIcon />,
       description: 'Art galleries, theaters, and cultural venues',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'nature',
@@ -60,7 +60,7 @@ const Preferences: React.FC = () => {
       icon: <NatureIcon />,
       description: 'Parks, gardens, and outdoor activities',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'food',
@@ -68,7 +68,7 @@ const Preferences: React.FC = () => {
       icon: <RestaurantIcon />,
       description: 'Restaurants, cafes, and local cuisine',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'entertainment',
@@ -76,7 +76,7 @@ const Preferences: React.FC = () => {
       icon: <LocalActivityIcon />,
       description: 'Amusement parks, cinemas, and entertainment venues',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'shopping',
@@ -84,7 +84,7 @@ const Preferences: React.FC = () => {
       icon: <ShoppingCartIcon />,
       description: 'Malls, markets, and retail districts',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'sports',
@@ -92,7 +92,7 @@ const Preferences: React.FC = () => {
       icon: <SportsEsportsIcon />,
       description: 'Sports venues, gyms, and recreational facilities',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
     {
       id: 'outdoor',
@@ -100,7 +100,7 @@ const Preferences: React.FC = () => {
       icon: <ParkIcon />,
       description: 'Hiking trails, beaches, and adventure sports',
       selected: false,
-      weight: 5,
+      weight: 0,
     },
   ]);
 
@@ -113,6 +113,35 @@ const Preferences: React.FC = () => {
   });
 
   const [saved, setSaved] = useState(false);
+
+  // Load saved preferences on component mount
+  useEffect(() => {
+    const savedPreferences = localStorage.getItem('navplaces_user_preferences');
+    if (savedPreferences) {
+      try {
+        const parsed = JSON.parse(savedPreferences);
+        
+        // Update interests with saved data
+        if (parsed.userPreferences) {
+          setInterests(prev => prev.map(interest => {
+            const saved = parsed.userPreferences.find((p: any) => p.category === interest.id);
+            return saved ? {
+              ...interest,
+              selected: true,
+              weight: saved.interestLevel
+            } : interest;
+          }));
+        }
+
+        // Update route preferences
+        if (parsed.routePreferences) {
+          setPreferences(parsed.routePreferences);
+        }
+      } catch (error) {
+        console.error('Error loading saved preferences:', error);
+      }
+    }
+  }, []);
 
   const handleInterestToggle = (id: string) => {
     setInterests(prev =>
@@ -133,9 +162,31 @@ const Preferences: React.FC = () => {
   };
 
   const handleSavePreferences = () => {
-    // Here you would typically save to backend/localStorage
+    // Convert interests to the format expected by the AI system
+    const userPreferences = interests
+      .filter(interest => interest.selected && interest.weight > 0)
+      .map(interest => ({
+        category: interest.id,
+        interestLevel: interest.weight,
+        description: interest.description
+      }));
+
+    // Save to localStorage for persistence
+    const preferencesData = {
+      userPreferences,
+      routePreferences: preferences,
+      lastUpdated: new Date().toISOString()
+    };
+
+    localStorage.setItem('navplaces_user_preferences', JSON.stringify(preferencesData));
+    
+    // Show success message
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+
+    // Log for debugging
+    console.log('Saved preferences:', preferencesData);
+    console.log('AI-ready preferences:', userPreferences);
   };
 
   const selectedInterests = interests.filter(interest => interest.selected);

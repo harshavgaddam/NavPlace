@@ -166,6 +166,42 @@ npm run build
 - **Firebase Hosting** - Google's hosting solution
 - **AWS S3 + CloudFront** - Scalable static hosting
 
+### Vercel Deployment (Recommended)
+
+#### 1. Connect to Vercel
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Login and deploy
+vercel login
+vercel --prod
+```
+
+#### 2. Set Environment Variables in Vercel Dashboard
+Go to your Vercel project dashboard → Settings → Environment Variables and add:
+
+```bash
+# Required for basic functionality
+REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# Required for AI-powered recommendations
+REACT_APP_GEMINI_API_KEY=your_gemini_api_key
+```
+
+#### 3. Verify Deployment
+After deployment, test:
+- Route planning functionality
+- AI-powered recommendations
+- User preferences persistence
+
+#### 4. API Verification
+Run this in your browser console on the deployed site:
+```javascript
+// Copy and paste the contents of src/utils/apiVerification.js
+// Or simply run: verifyNavPlacesAPIs()
+```
+
 ### Environment Setup for Production
 1. Set up environment variables in your hosting platform
 2. Configure domain restrictions for Google Maps API key

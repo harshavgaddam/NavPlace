@@ -135,15 +135,7 @@ const RoutePlanner: React.FC = () => {
     showStartPredictions: false,
     showEndPredictions: false,
     transportationMode: 'driving',
-    userPreferences: [
-      { category: 'restaurant', interestLevel: 3 },
-      { category: 'museum', interestLevel: 3 },
-      { category: 'park', interestLevel: 3 },
-      { category: 'shopping', interestLevel: 3 },
-      { category: 'activity', interestLevel: 3 },
-      { category: 'lodging', interestLevel: 3 },
-      { category: 'photography', interestLevel: 3 },
-    ],
+    userPreferences: [], // Start with empty preferences
     enhancedAnalysis: null,
     showPreferences: false,
     selectedPlace: null,
@@ -156,6 +148,25 @@ const RoutePlanner: React.FC = () => {
 
   const startInputRef = useRef<HTMLInputElement>(null);
   const endInputRef = useRef<HTMLInputElement>(null);
+
+  // Load saved preferences on component mount
+  useEffect(() => {
+    const savedPreferences = localStorage.getItem('navplaces_user_preferences');
+    if (savedPreferences) {
+      try {
+        const parsed = JSON.parse(savedPreferences);
+        if (parsed.userPreferences && parsed.userPreferences.length > 0) {
+          setState(prev => ({
+            ...prev,
+            userPreferences: parsed.userPreferences
+          }));
+          console.log('Loaded saved preferences:', parsed.userPreferences);
+        }
+      } catch (error) {
+        console.error('Error loading saved preferences:', error);
+      }
+    }
+  }, []);
 
   // Debounced handlers
   const debouncedStart = useRef(
@@ -276,6 +287,15 @@ const RoutePlanner: React.FC = () => {
     setState(prev => ({ ...prev, loading: true, error: '' }));
 
     try {
+      // Check if user has set preferences
+      const hasPreferences = state.userPreferences.length > 0;
+      
+      if (!hasPreferences) {
+        console.log('No user preferences set - using default recommendations');
+      } else {
+        console.log('Using user preferences for AI recommendations:', state.userPreferences);
+      }
+
       // Get comprehensive recommendations using integrated service
       const travelPreferences: TravelPreferences = {
         userPreferences: state.userPreferences,
@@ -696,6 +716,35 @@ const RoutePlanner: React.FC = () => {
                 </Typography>
 
                                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
+                   {/* AI Preferences Status */}
+                   <Box sx={{ 
+                     p: 2, 
+                     borderRadius: 2, 
+                     background: state.userPreferences.length > 0 
+                       ? 'rgba(16, 185, 129, 0.1)' 
+                       : 'rgba(245, 158, 11, 0.1)',
+                     border: `1px solid ${state.userPreferences.length > 0 ? '#10b981' : '#f59e0b'}`,
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: 1
+                   }}>
+                     <Box sx={{
+                       width: 8,
+                       height: 8,
+                       borderRadius: '50%',
+                       background: state.userPreferences.length > 0 ? '#10b981' : '#f59e0b'
+                     }} />
+                     <Typography variant="body2" sx={{ 
+                       color: state.userPreferences.length > 0 ? '#10b981' : '#f59e0b',
+                       fontWeight: 500
+                     }}>
+                       {state.userPreferences.length > 0 
+                         ? `AI Preferences Set (${state.userPreferences.length} categories)`
+                         : 'Set your preferences for personalized AI recommendations'
+                       }
+                     </Typography>
+                   </Box>
+
                    {/* AI Preferences Panel */}
                    <PreferencesPanel
                      preferences={state.userPreferences}

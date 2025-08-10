@@ -31,18 +31,12 @@ const AITravelDemo: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   const demoPreferences: TravelPreferences = {
-    userPreferences: [
-      { category: 'restaurant', interestLevel: 5 },
-      { category: 'museum', interestLevel: 4 },
-      { category: 'park', interestLevel: 3 },
-      { category: 'shopping', interestLevel: 2 },
-      { category: 'activity', interestLevel: 4 },
-      { category: 'lodging', interestLevel: 1 },
-      { category: 'photography', interestLevel: 5 },
-    ],
+    userPreferences: [], // Start with empty preferences to show the difference
     travelPurpose: 'leisure',
     budget: 'moderate'
   };
+
+  const [currentPreferences, setCurrentPreferences] = useState<TravelPreferences>(demoPreferences);
 
   const handleDemoRequest = async () => {
     setLoading(true);
@@ -53,7 +47,7 @@ const AITravelDemo: React.FC = () => {
         'New York, NY',
         'Boston, MA',
         'driving',
-        demoPreferences
+        currentPreferences
       );
       
       setRecommendations(analysis.recommendations);
@@ -71,6 +65,23 @@ const AITravelDemo: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSetDemoPreferences = () => {
+    const newPreferences: TravelPreferences = {
+      userPreferences: [
+        { category: 'restaurant', interestLevel: 5 },
+        { category: 'museum', interestLevel: 4 },
+        { category: 'park', interestLevel: 3 },
+        { category: 'shopping', interestLevel: 2 },
+        { category: 'activity', interestLevel: 4 },
+        { category: 'lodging', interestLevel: 1 },
+        { category: 'photography', interestLevel: 5 },
+      ],
+      travelPurpose: 'leisure',
+      budget: 'moderate'
+    };
+    setCurrentPreferences(newPreferences);
   };
 
   const getImportanceColor = (importance: string) => {
@@ -107,23 +118,44 @@ const AITravelDemo: React.FC = () => {
           Demo Route: New York → Boston
         </Typography>
         <Typography variant="body2" className="text-secondary" sx={{ mb: 2 }}>
-          User Preferences: Food enthusiast (5/5), Museum lover (4/5), Photography enthusiast (5/5)
+          {currentPreferences.userPreferences.length > 0 
+            ? `User Preferences: ${currentPreferences.userPreferences.map(p => `${p.category} (${p.interestLevel}/5)`).join(', ')}`
+            : 'No preferences set - using default recommendations'
+          }
         </Typography>
         
-        <Button
-          variant="contained"
-          onClick={handleDemoRequest}
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={20} /> : <ExploreIcon />}
-          sx={{
-            background: 'var(--primary-gradient)',
-            '&:hover': {
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button
+            variant="contained"
+            onClick={handleDemoRequest}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <ExploreIcon />}
+            sx={{
               background: 'var(--primary-gradient)',
-            },
-          }}
-        >
-          {loading ? 'Getting AI Recommendations...' : 'Get AI Recommendations'}
-        </Button>
+              '&:hover': {
+                background: 'var(--primary-gradient)',
+              },
+            }}
+          >
+            {loading ? 'Getting Recommendations...' : 'Get Recommendations'}
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={handleSetDemoPreferences}
+            disabled={loading}
+            sx={{
+              borderColor: 'var(--border-primary)',
+              color: 'var(--text-primary)',
+              '&:hover': {
+                borderColor: 'var(--primary-color)',
+                backgroundColor: 'rgba(44, 90, 160, 0.1)',
+              },
+            }}
+          >
+            Set Demo Preferences
+          </Button>
+        </Box>
       </Paper>
 
       {error && (
@@ -135,7 +167,10 @@ const AITravelDemo: React.FC = () => {
       {recommendations.length > 0 && (
         <Box>
           <Typography variant="h5" gutterBottom className="text-primary" sx={{ fontWeight: 700 }}>
-            AI-Powered Recommendations ({recommendations.length})
+            {currentPreferences.userPreferences.length > 0 
+              ? `AI-Powered Recommendations (${recommendations.length})`
+              : `Enhanced Recommendations (${recommendations.length})`
+            }
           </Typography>
           
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
